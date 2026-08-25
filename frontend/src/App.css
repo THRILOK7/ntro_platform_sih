@@ -1,0 +1,100 @@
+/* App-specific component styles */
+
+/* Loading spinner animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.animate-spin {
+  animation: spin 1s linear infinite;
+}
+
+/* File drag zone highlight */
+.drag-zone {
+  transition: all 0.3s ease;
+}
+
+.drag-zone.drag-active {
+  transform: scale(1.02);
+}
+
+/* Result drawer slide-up animation */
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.result-drawer {
+  animation: slideUp 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Glassmorphism effect for modals */
+.modal-glass {
+  background: rgba(15, 23, 42, 0.8);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+/* Smooth gradient transitions */
+.gradient-button {
+  background: linear-gradient(135deg, #6366f1 0%, #06b6d4 100%);
+  transition: all 0.3s ease;
+}
+
+.gradient-button:hover {
+  box-shadow: 0 8px 24px rgba(6, 182, 212, 0.3);
+  transform: translateY(-2px);
+}
+
+.gradient-button:active {
+  transform: translateY(0);
+}
+
+/* Focus ring for accessibility */
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #06b6d4;
+  outline-offset: 2px;
+}
+
+/* Badge animations */
+@keyframes badgePulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.7;
+  }
+}
+
+.badge-active {
+  animation: badgePulse 2s infinite;
+}
+
+/* Text truncation utility */
+.truncate-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.truncate-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
