@@ -1,6 +1,6 @@
 """
-Enterprise Gen AI Content Transformation Platform - Phase 1 Ingestion Engine
-Production-ready FastAPI backend with defensive error handling and async operations.
+Enterprise Gen AI Content Transformation Platform - Phases 1-5 Complete Platform
+Production-ready FastAPI backend with defensive error handling, rate limiting, and async operations.
 """
 
 import json
@@ -12,13 +12,19 @@ from uuid import uuid4
 
 from fastapi import FastAPI, UploadFile, File, Form, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel, Field, field_validator
 from dotenv import load_dotenv
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 import os
 
 from parsers import extract_content
 from generator import generate_with_retry
+from analytics import batch_analytics
+from export import PDFExporter, DOCXExporter, ContentRefiner
+from tts import generate_speech, generate_video_script_audio
 from prompts import IngestionParameters as GenerationParams
 
 # Configure logging
@@ -30,36 +36,74 @@ logger = logging.getLogger(__name__)
 
 # Load environment variables
 load_dotenv()
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 PORT = int(os.getenv("PORT", 8000))
 
 # Validate required environment variables
-if not OPENAI_API_KEY:
+if not GROQ_API_KEY:
     raise ValueError(
-        "OPENAI_API_KEY environment variable is required but not set. "
+        "GROQ_API_KEY environment variable is required but not set. "
         "Please configure it in .env file."
     )
 
 # Initialize FastAPI app
 app = FastAPI(
-    title="NTRO Platform - Phase 1 Ingestion Engine",
-    description="Production-ready content ingestion and transformation API",
-    version="1.0.0",
+    title="NTRO Platform - Phases 1-5: Complete Platform",
+    description="Production-ready content ingestion, transformation, refinement, export, analytics, and text-to-speech API",
+    version="2.0.0",
 )
+
+# Initialize rate limiter (30 requests per minute)
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+# Add rate limit exception handler
+@app.exception_handler(RateLimitExceeded)
+async def rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    logger.warning(f"Rate limit exceeded for {get_remote_address(request)}")
+    return JSONResponse(
+        status_code=429,
+        content={
+            "status": "error",
+            "code": "RATE_LIMIT_EXCEEDED",
+            "message": "Too many requests. Maximum 30 requests per minute allowed.",
+            "timestamp": datetime.utcnow().isoformat(),
+        },
+    )
 
 # Configure CORS middleware
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",  # Vite dev server
+        "http://localhost:5174",  # Alternative Vite port
         "http://localhost:3000",  # Alternative dev port
         "http://127.0.0.1:5173",
+        "http://127.0.0.1:5174",
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# Add request size limit middleware (25MB max)
+@app.middleware("http")
+async def add_request_size_limit(request: Request, call_next):
+    """Limit maximum request payload size to 25MB."""
+    if request.method == "POST":
+        content_length = request.headers.get("content-length")
+        if content_length and int(content_length) > 25 * 1024 * 1024:
+            return JSONResponse(
+                status_code=413,
+                content={
+                    "status": "error",
+                    "code": "REQUEST_TOO_LARGE",
+                    "message": "Request payload exceeds 25MB limit.",
+                },
+            )
+    return await call_next(request)
 
 
 # ==================== Enum Definitions ====================
@@ -159,7 +203,35 @@ class HealthResponse(BaseModel):
     """Health check response model."""
 
     status: str = Field(default="operational", description="Service status")
-    phase: str = Field(default="Phase 1: Ingestion Engine", description="Current phase")
+    phase: str = Field(default="Phase 1-5: Complete Platform", description="Current phase")
+
+
+# ==================== Request/Response Models for Phase 3-5 ====================
+
+
+class RefineRequest(BaseModel):
+    """Request model for content refinement."""
+
+    original_content: str = Field(description="Original content to refine")
+    instruction: str = Field(description="Refinement instruction")
+    format_type: str = Field(description="Type of deliverable")
+    parameters: dict = Field(description="Generation parameters")
+
+
+class AnalyticsRequest(BaseModel):
+    """Request model for analytics computation."""
+
+    deliverables: dict[str, str] = Field(description="Format -> Content mapping")
+    parameters: dict = Field(description="Generation parameters")
+
+
+class TTSRequest(BaseModel):
+    """Request model for text-to-speech generation."""
+
+    content: str = Field(description="Text to convert to speech")
+    language: str = Field(default="English", description="Language")
+    tone: str = Field(default="Conversational", description="Tone")
+    format_type: str = Field(default="General", description="Content format type")
 
 
 # ==================== Exception Handlers ====================
@@ -204,7 +276,8 @@ async def general_exception_handler(request: Request, exc: Exception):
 
 
 @app.get("/health", response_model=HealthResponse)
-async def health_check() -> HealthResponse:
+@limiter.limit("30/minute")
+async def health_check(request: Request) -> HealthResponse:
     """
     Health check endpoint for monitoring service status.
 
@@ -215,7 +288,9 @@ async def health_check() -> HealthResponse:
 
 
 @app.post("/api/v1/ingest", response_model=IngestionResponse)
+@limiter.limit("30/minute")
 async def ingest_content(
+    request: Request,
     file: Optional[UploadFile] = File(None),
     raw_text: Optional[str] = Form(None),
     parameters: str = Form(...),
@@ -364,7 +439,9 @@ async def ingest_content(
 
 
 @app.post("/api/v1/generate")
+@limiter.limit("30/minute")
 async def generate_content(
+    request: Request,
     extracted_text: str = Form(...),
     parameters: str = Form(...),
 ) -> dict:
@@ -440,6 +517,285 @@ async def generate_content(
             status_code=500,
             detail="An error occurred during content generation.",
         )
+
+
+# ==================== Phase 3: Export & Refinement Endpoints ====================
+
+
+@app.post("/api/v1/refine")
+@limiter.limit("30/minute")
+async def refine_content(request: Request, refine_req: RefineRequest) -> dict:
+    """
+    Refine generated content based on user instruction.
+
+    Args:
+        refine_req: RefineRequest with original content, instruction, format, and parameters
+
+    Returns:
+        Dictionary with refined_content and change_summary
+
+    Raises:
+        HTTPException 400: If invalid request
+        HTTPException 500: If refinement fails
+    """
+    refine_id = str(uuid4())
+
+    try:
+        if not refine_req.original_content.strip():
+            raise ValueError("Original content cannot be empty")
+
+        if not refine_req.instruction.strip():
+            raise ValueError("Refinement instruction cannot be empty")
+
+        logger.info(f"[{refine_id}] Refining {refine_req.format_type}: {refine_req.instruction}")
+
+        result = await ContentRefiner.refine_content(
+            refine_req.original_content,
+            refine_req.instruction,
+            refine_req.format_type,
+            GenerationParams(**refine_req.parameters),
+        )
+
+        if result.get("status") == "error":
+            raise ValueError(result.get("error", "Refinement failed"))
+
+        logger.info(f"[{refine_id}] Refinement successful")
+        return result
+
+    except ValueError as e:
+        logger.warning(f"[{refine_id}] Validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[{refine_id}] Refinement error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Refinement failed")
+
+
+@app.post("/api/v1/export/pdf")
+@limiter.limit("30/minute")
+async def export_pdf(
+    request: Request,
+    deliverables: str = Form(...),
+    parameters: str = Form(...),
+):
+    """
+    Export deliverables to PDF format.
+
+    Args:
+        deliverables: JSON-stringified dictionary of format -> content
+        parameters: JSON-stringified IngestionParameters
+
+    Returns:
+        StreamingResponse with PDF binary data
+    """
+    export_id = str(uuid4())
+
+    try:
+        # Parse inputs
+        deliverables_dict = json.loads(deliverables)
+        params_dict = json.loads(parameters)
+        params = GenerationParams(**params_dict)
+
+        logger.info(f"[{export_id}] Generating PDF with {len(deliverables_dict)} deliverables")
+
+        # Generate PDF
+        pdf_bytes = PDFExporter.generate_pdf(deliverables_dict, params)
+
+        logger.info(f"[{export_id}] PDF generated: {len(pdf_bytes)} bytes")
+
+        return StreamingResponse(
+            iter([pdf_bytes]),
+            media_type="application/pdf",
+            headers={"Content-Disposition": f"attachment; filename=ntro_deliverables_{export_id}.pdf"},
+        )
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"[{export_id}] Invalid JSON: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        logger.error(f"[{export_id}] PDF export error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="PDF export failed")
+
+
+@app.post("/api/v1/export/docx")
+@limiter.limit("30/minute")
+async def export_docx(
+    request: Request,
+    deliverables: str = Form(...),
+    parameters: str = Form(...),
+):
+    """
+    Export deliverables to DOCX (Word) format.
+
+    Args:
+        deliverables: JSON-stringified dictionary of format -> content
+        parameters: JSON-stringified IngestionParameters
+
+    Returns:
+        StreamingResponse with DOCX binary data
+    """
+    export_id = str(uuid4())
+
+    try:
+        # Parse inputs
+        deliverables_dict = json.loads(deliverables)
+        params_dict = json.loads(parameters)
+        params = GenerationParams(**params_dict)
+
+        logger.info(f"[{export_id}] Generating DOCX with {len(deliverables_dict)} deliverables")
+
+        # Generate DOCX
+        docx_bytes = DOCXExporter.generate_docx(deliverables_dict, params)
+
+        logger.info(f"[{export_id}] DOCX generated: {len(docx_bytes)} bytes")
+
+        return StreamingResponse(
+            iter([docx_bytes]),
+            media_type="application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            headers={"Content-Disposition": f"attachment; filename=ntro_deliverables_{export_id}.docx"},
+        )
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"[{export_id}] Invalid JSON: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        logger.error(f"[{export_id}] DOCX export error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="DOCX export failed")
+
+
+@app.post("/api/v1/export/json")
+@limiter.limit("30/minute")
+async def export_json(
+    request: Request,
+    deliverables: str = Form(...),
+    parameters: str = Form(...),
+):
+    """
+    Export deliverables as JSON.
+
+    Args:
+        deliverables: JSON-stringified dictionary of format -> content
+        parameters: JSON-stringified IngestionParameters
+
+    Returns:
+        JSONResponse with all deliverables and metadata
+    """
+    try:
+        deliverables_dict = json.loads(deliverables)
+        params_dict = json.loads(parameters)
+
+        export_data = {
+            "status": "success",
+            "timestamp": datetime.utcnow().isoformat(),
+            "deliverables": deliverables_dict,
+            "parameters": params_dict,
+            "export_format": "json",
+        }
+
+        return JSONResponse(content=export_data)
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"JSON export error: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+
+
+# ==================== Phase 4: Analytics & TTS Endpoints ====================
+
+
+@app.post("/api/v1/analytics")
+@limiter.limit("30/minute")
+async def compute_analytics(
+    request: Request,
+    deliverables: str = Form(...),
+    parameters: str = Form(...),
+) -> dict:
+    """
+    Compute analytics metrics for generated deliverables.
+
+    Args:
+        deliverables: JSON-stringified dictionary of format -> content
+        parameters: JSON-stringified generation parameters
+
+    Returns:
+        Dictionary mapping format names to analytics results
+    """
+    try:
+        # Parse JSON inputs
+        deliverables_dict = json.loads(deliverables)
+        params_dict = json.loads(parameters)
+        
+        logger.info(f"Computing analytics for {len(deliverables_dict)} deliverables")
+
+        analytics = batch_analytics(deliverables_dict)
+
+        return {
+            "status": "success",
+            "analytics": analytics,
+            "timestamp": datetime.utcnow().isoformat(),
+        }
+
+    except json.JSONDecodeError as e:
+        logger.warning(f"Invalid JSON: {str(e)}")
+        raise HTTPException(status_code=400, detail="Invalid JSON format")
+    except Exception as e:
+        logger.error(f"Analytics computation error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="Analytics computation failed")
+
+
+@app.post("/api/v1/tts")
+@limiter.limit("30/minute")
+async def generate_tts(
+    request: Request,
+    tts_req: TTSRequest,
+):
+    """
+    Generate text-to-speech audio from content.
+
+    Args:
+        tts_req: TTSRequest with content, language, and tone
+
+    Returns:
+        StreamingResponse with MP3 audio data
+
+    Raises:
+        HTTPException 400: If content is empty
+        HTTPException 500: If TTS generation fails
+    """
+    tts_id = str(uuid4())
+
+    try:
+        if not tts_req.content.strip():
+            raise ValueError("Content cannot be empty")
+
+        logger.info(f"[{tts_id}] Generating TTS: language={tts_req.language}, tone={tts_req.tone}")
+
+        # Special handling for video scripts
+        if tts_req.format_type == "Video Package":
+            audio_bytes = await generate_video_script_audio(tts_req.content, tts_req.language)
+        else:
+            audio_bytes = await generate_speech(
+                tts_req.content,
+                language=tts_req.language,
+                tone=tts_req.tone,
+            )
+
+        if not audio_bytes:
+            logger.warning(f"[{tts_id}] TTS generation returned no audio")
+            raise ValueError("TTS generation failed - no audio produced")
+
+        logger.info(f"[{tts_id}] TTS generated successfully: {len(audio_bytes)} bytes")
+
+        return StreamingResponse(
+            iter([audio_bytes]),
+            media_type="audio/mpeg",
+            headers={"Content-Disposition": f"attachment; filename=audio_{tts_id}.mp3"},
+        )
+
+    except ValueError as e:
+        logger.warning(f"[{tts_id}] Validation error: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        logger.error(f"[{tts_id}] TTS error: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail="TTS generation failed")
 
 
 # ==================== Application Entry Point ====================

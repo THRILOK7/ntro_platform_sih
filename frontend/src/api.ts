@@ -354,3 +354,155 @@ export const getFileTypeInfo = (
     }
   )
 }
+
+// ==================== Phase 3-5: New Endpoints ====================
+
+/**
+ * Refine generated content based on user instruction.
+ *
+ * @param {object} request - Refinement request
+ * @returns {Promise<object>} Refined content and summary
+ * @throws {ApiError} If refinement fails
+ */
+export const refineContent = async (request: {
+  original_content: string
+  instruction: string
+  format_type: string
+  parameters: Record<string, any>
+}): Promise<{
+  status: string
+  refined_content: string
+  change_summary: string
+  original_length: number
+  refined_length: number
+}> => {
+  try {
+    const response = await apiClient.post<{
+      status: string
+      refined_content: string
+      change_summary: string
+      original_length: number
+      refined_length: number
+    }>("/api/v1/refine", request)
+    return response.data
+  } catch (error) {
+    console.error("Content refinement failed:", error)
+    throw error
+  }
+}
+
+/**
+ * Export deliverables in specified format.
+ *
+ * @param {Record<string, any>} deliverables - Deliverables to export
+ * @param {Record<string, any>} parameters - Generation parameters
+ * @param {string} format - Export format: pdf, docx, or json
+ * @returns {Promise<Blob>} Binary file data
+ * @throws {ApiError} If export fails
+ */
+export const exportDeliverables = async (
+  deliverables: Record<string, any>,
+  parameters: Record<string, any>,
+  format: "pdf" | "docx" | "json"
+): Promise<Blob> => {
+  const formData = new FormData()
+  formData.append("deliverables", JSON.stringify(deliverables))
+  formData.append("parameters", JSON.stringify(parameters))
+
+  try {
+    const response = await apiClient.post(
+      `/api/v1/export/${format}`,
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+        responseType: "blob",
+      }
+    )
+    return response.data
+  } catch (error) {
+    console.error(`Export to ${format} failed:`, error)
+    throw error
+  }
+}
+
+/**
+ * Compute analytics for deliverables.
+ *
+ * @param {Record<string, any>} deliverables - Deliverables to analyze
+ * @param {Record<string, any>} parameters - Generation parameters
+ * @returns {Promise<Record<string, any>>} Analytics results per format
+ * @throws {ApiError} If analytics computation fails
+ */
+export const computeAnalytics = async (
+  deliverables: Record<string, any>,
+  parameters: Record<string, any>
+): Promise<{
+  status: string
+  analytics: Record<string, any>
+  timestamp: string
+}> => {
+  const formData = new FormData()
+  formData.append("deliverables", JSON.stringify(deliverables))
+  formData.append("parameters", JSON.stringify(parameters))
+
+  try {
+    const response = await apiClient.post("/api/v1/analytics", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    })
+    return response.data
+  } catch (error) {
+    console.error("Analytics computation failed:", error)
+    throw error
+  }
+}
+
+/**
+ * Generate text-to-speech audio from content.
+ *
+ * @param {object} request - TTS request
+ * @returns {Promise<Blob>} MP3 audio data
+ * @throws {ApiError} If TTS generation fails
+ */
+export const generateTTS = async (request: {
+  content: string
+  language: string
+  tone: string
+  format_type: string
+}): Promise<Blob> => {
+  const formData = new FormData()
+  formData.append("content", request.content)
+  formData.append("language", request.language)
+  formData.append("tone", request.tone)
+  formData.append("format_type", request.format_type)
+
+  try {
+    const response = await apiClient.post("/api/v1/tts", formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+      responseType: "blob",
+    })
+    return response.data
+  } catch (error) {
+    console.error("TTS generation failed:", error)
+    throw error
+  }
+}
+
+// ==================== Convenience Export ====================
+
+export const api = {
+  checkHealth,
+  ingestContent,
+  generateContent,
+  refineContent,
+  exportDeliverables,
+  computeAnalytics,
+  generateTTS,
+  formatFileSize,
+  getFileTypeInfo,
+}

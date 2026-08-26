@@ -1,11 +1,7 @@
-"""
-Asynchronous content generation engine using OpenAI API.
-Generates targeted deliverables in parallel for minimal latency.
-"""
-
 import asyncio
 import json
 import logging
+import os
 from typing import Any
 
 from openai import AsyncOpenAI
@@ -26,7 +22,6 @@ class GenerationError(Exception):
 
 
 async def generate_single_deliverable(
-    client: AsyncOpenAI,
     extracted_text: str,
     output_format: str,
     params: IngestionParameters,
@@ -35,7 +30,6 @@ async def generate_single_deliverable(
     Generate a single deliverable using OpenAI API.
 
     Args:
-        client: AsyncOpenAI client instance
         extracted_text: Source content from Phase 1
         output_format: Target deliverable format
         params: Generation parameters (audience, tone, etc.)
@@ -47,18 +41,52 @@ async def generate_single_deliverable(
         system_prompt = construct_system_prompt(output_format, params)
         user_prompt = construct_user_prompt(extracted_text, output_format)
 
-        logger.info(f"Generating {output_format} using OpenAI API...")
+        logger.info(f"Generating {output_format} using Groq API...")
 
-        response = await client.chat.completions.create(
-            model="gpt-4o",
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ],
-            temperature=0.7,
-            max_tokens=2000,
-            timeout=60,
+        # Initialize AsyncOpenAI client with Groq API key
+        api_key = os.getenv("GROQ_API_KEY")
+        if not api_key:
+            raise ValueError("GROQ_API_KEY environment variable is required")
+
+        client = AsyncOpenAI(
+            api_key=api_key,
+            base_url="https://api.groq.com/openai/v1"
         )
+
+        # Try available Groq models in priority order
+        models_to_try = [
+            "mixtral-8x7b-32768",  # fallback if it becomes available again
+            "llama-2-70b-chat",    # fallback
+            "qwen-max",            # Qwen models
+            "openai/gpt-oss-120b", # GPT-OSS models (recommended)
+            "openai/gpt-oss-20b",  # Fast model
+        ]
+        response = None
+        last_error = None
+        
+        for model in models_to_try:
+            try:
+                response = await client.chat.completions.create(
+                    model=model,
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": user_prompt},
+                    ],
+                    temperature=0.7,
+                    max_tokens=2000,
+                    timeout=60,
+                )
+                logger.info(f"Successfully used {model} for {output_format}")
+                break
+            except Exception as e:
+                last_error = e
+                if model != models_to_try[-1]:
+                    logger.warning(f"Model {model} failed, trying {models_to_try[models_to_try.index(model) + 1]}")
+                    continue
+                raise
+        
+        if response is None:
+            raise Exception(f"All models failed: {str(last_error)}")
 
         content = response.choices[0].message.content or ""
 
@@ -162,13 +190,10 @@ async def generate_deliverables_async(
 
     start_time = time.time()
 
-    # Initialize AsyncOpenAI client
-    client = AsyncOpenAI()
-
     # Create concurrent generation tasks
     tasks = [
         generate_single_deliverable(
-            client, extracted_text, output_format, params
+            extracted_text, output_format, params
         )
         for output_format in params.selected_outputs
     ]
