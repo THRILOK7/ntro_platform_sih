@@ -1,17 +1,10 @@
 /**
  * Review, Refinement & Export Component
- * Allows inline editing, refinement, and multi-format export of deliverables.
+ * Inline editing and AI refinement of deliverables in Flat Design.
  */
 
 import React, { useState } from 'react';
-import {
-  Download,
-  RefreshCw,
-  Copy,
-  Check,
-  AlertCircle,
-} from 'lucide-react';
-import clsx from 'clsx';
+import { RefreshCw, Copy, Check, Sparkles } from 'lucide-react';
 import { toast } from '../utils/toast';
 import { api } from '../api';
 
@@ -30,18 +23,14 @@ export const ReviewExport: React.FC<ReviewExportProps> = ({
     Object.keys(deliverables)[0] || ''
   );
   const [editedContent, setEditedContent] = useState<string>('');
-  const [isEditing, setIsEditing] = useState(false);
   const [refinementInstruction, setRefinementInstruction] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [isRefining, setIsRefining] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
-  // Initialize edited content when format changes
   React.useEffect(() => {
     if (selectedFormat && deliverables[selectedFormat]) {
       const content = deliverables[selectedFormat];
       setEditedContent(Array.isArray(content) ? content.join('\n\n') : content);
-      setIsEditing(false);
     }
   }, [selectedFormat, deliverables]);
 
@@ -98,223 +87,132 @@ export const ReviewExport: React.FC<ReviewExportProps> = ({
   };
 
   const handleCopy = () => {
-    navigator.clipboard
-      .writeText(currentContent)
-      .then(() => {
-        setIsCopied(true);
-        toast.success('Copied to clipboard!', 2000);
-        setTimeout(() => setIsCopied(false), 2000);
-      })
-      .catch(() => {
-        toast.error('Failed to copy', 2000);
-      });
-  };
-
-  const handleExport = async (format: 'pdf' | 'docx' | 'json') => {
-    setIsExporting(true);
-    try {
-      const response = await api.exportDeliverables(
-        deliverables,
-        parameters,
-        format
-      );
-
-      // Create blob and trigger download
-      const blob = new Blob([response], {
-        type:
-          format === 'pdf'
-            ? 'application/pdf'
-            : format === 'docx'
-              ? 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-              : 'application/json',
-      });
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `deliverables.${format}`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      window.URL.revokeObjectURL(url);
-
-      toast.success(`Exported as ${format.toUpperCase()}!`, 2000);
-    } catch (err) {
-      console.error('Export error:', err);
-      toast.error(`Failed to export as ${format.toUpperCase()}`, 2000);
-    } finally {
-      setIsExporting(false);
-    }
+    navigator.clipboard.writeText(currentContent).then(() => {
+      setIsCopied(true);
+      toast.success('Copied to clipboard!', 2000);
+      setTimeout(() => setIsCopied(false), 2000);
+    });
   };
 
   if (!selectedFormat) {
     return (
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-6 text-center text-slate-400">
-        <AlertCircle className="w-8 h-8 mx-auto mb-2 opacity-50" />
-        <p>No deliverables to review</p>
+      <div className="p-8 text-center text-sm text-[#6B7280]">
+        No deliverables available to review.
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Format Selector */}
-      <div className="flex gap-2 flex-wrap">
+    <div className="space-y-5">
+      {/* Format Selector Pills */}
+      <div className="flex gap-2 flex-wrap border-b border-[#E5E7EB] pb-3">
         {Object.keys(deliverables).map((format) => (
           <button
             key={format}
+            type="button"
             onClick={() => setSelectedFormat(format)}
-            className={clsx(
-              'px-3 py-2 text-sm font-medium rounded-lg transition-all',
+            className={`px-3.5 py-2 text-xs font-semibold rounded-md transition-colors ${
               selectedFormat === format
-                ? 'bg-blue-600 text-white'
-                : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-            )}
+                ? 'bg-[#3B82F6] text-white'
+                : 'bg-[#F3F4F6] text-[#4B5563] hover:text-[#111827] hover:bg-[#E5E7EB]'
+            }`}
           >
             {format}
           </button>
         ))}
       </div>
 
-      {/* Content Editor */}
-      <div className="bg-slate-900 border border-slate-700 rounded-lg p-4 space-y-3">
+      {/* Editor Box */}
+      <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 space-y-3">
         <div className="flex items-center justify-between">
-          <span className="text-sm font-medium text-slate-300">
-            {selectedFormat}
+          <span className="text-sm font-bold text-[#111827]">
+            Review &amp; Edit: <span className="text-[#3B82F6]">{selectedFormat}</span>
           </span>
           <button
+            type="button"
             onClick={handleCopy}
-            className="flex items-center gap-1 px-2 py-1 text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 rounded transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111827] border border-[#E5E7EB] rounded-md transition-colors"
           >
-            {isCopied ? (
-              <>
-                <Check className="w-3 h-3" /> Copied
-              </>
-            ) : (
-              <>
-                <Copy className="w-3 h-3" /> Copy
-              </>
-            )}
+            {isCopied ? <Check className="w-4 h-4 text-[#10B981]" /> : <Copy className="w-4 h-4" />}
+            <span>{isCopied ? 'Copied' : 'Copy Text'}</span>
           </button>
         </div>
 
         <textarea
           value={currentContent}
-          onChange={(e) => {
-            setEditedContent(e.target.value);
-            setIsEditing(true);
-          }}
-          className="w-full h-48 bg-slate-800 border border-slate-700 rounded p-3 text-sm text-slate-100 placeholder-slate-500 focus:border-blue-500 focus:outline-none resize-none"
+          onChange={(e) => setEditedContent(e.target.value)}
+          rows={11}
+          className="w-full text-sm leading-relaxed font-sans"
           placeholder="Content will appear here..."
         />
-
-        {isEditing && (
-          <div className="text-xs text-yellow-400 flex items-center gap-1">
-            <AlertCircle className="w-3 h-3" /> Unsaved changes
-          </div>
-        )}
       </div>
 
-      {/* Quick Refinement Actions */}
-      <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 space-y-3">
-        <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-          <RefreshCw className="w-4 h-4" /> Quick Refinements
-        </h4>
+      {/* Quick AI Refinements */}
+      <div className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg p-5 space-y-4">
+        <div className="flex items-center gap-2">
+          <Sparkles className="w-4 h-4 text-[#3B82F6]" />
+          <h4 className="text-sm font-bold text-[#111827]">
+            Refinement Presets
+          </h4>
+        </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
           <button
+            type="button"
             onClick={() => handleApplyPreset('shorten')}
             disabled={isRefining}
-            className="px-3 py-2 text-xs font-medium bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 rounded transition-colors"
+            className="py-2.5 px-4 text-xs font-semibold bg-white border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/20 text-[#111827] rounded-md transition-colors"
           >
-            Shorten
+            ✂️ Make Concise (30% shorter)
           </button>
           <button
+            type="button"
             onClick={() => handleApplyPreset('formal')}
             disabled={isRefining}
-            className="px-3 py-2 text-xs font-medium bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 rounded transition-colors"
+            className="py-2.5 px-4 text-xs font-semibold bg-white border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/20 text-[#111827] rounded-md transition-colors"
           >
-            Make Formal
+            👔 Formal Tone
           </button>
           <button
+            type="button"
             onClick={() => handleApplyPreset('translate')}
             disabled={isRefining}
-            className="px-3 py-2 text-xs font-medium bg-slate-700 hover:bg-slate-600 disabled:opacity-50 text-slate-200 rounded transition-colors"
+            className="py-2.5 px-4 text-xs font-semibold bg-white border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/20 text-[#111827] rounded-md transition-colors"
           >
-            Hindi
+            🌐 Translate to Hindi
           </button>
         </div>
 
-        {/* Custom Refinement */}
-        <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder="Custom instruction..."
-            value={refinementInstruction}
-            onChange={(e) => setRefinementInstruction(e.target.value)}
-            className="flex-1 px-3 py-2 text-xs bg-slate-700 border border-slate-600 rounded text-slate-100 placeholder-slate-400 focus:border-blue-500 focus:outline-none"
-          />
-          <button
-            onClick={() => handleApplyPreset('custom')}
-            disabled={isRefining || !refinementInstruction.trim()}
-            className="px-3 py-2 text-xs font-medium bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white rounded transition-colors"
-          >
-            {isRefining ? 'Refining...' : 'Apply'}
-          </button>
-        </div>
-      </div>
-
-      {/* Export Options */}
-      <div className="bg-slate-800/50 border border-slate-700/50 rounded-lg p-4 space-y-3">
-        <h4 className="text-sm font-medium text-slate-300 flex items-center gap-2">
-          <Download className="w-4 h-4" /> Export
-        </h4>
-
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-          <button
-            onClick={() => handleExport('pdf')}
-            disabled={isExporting}
-            className="px-3 py-2 text-xs font-medium bg-red-600/20 hover:bg-red-600/30 disabled:opacity-50 text-red-300 border border-red-600/30 rounded transition-colors"
-          >
-            PDF
-          </button>
-          <button
-            onClick={() => handleExport('docx')}
-            disabled={isExporting}
-            className="px-3 py-2 text-xs font-medium bg-blue-600/20 hover:bg-blue-600/30 disabled:opacity-50 text-blue-300 border border-blue-600/30 rounded transition-colors"
-          >
-            DOCX
-          </button>
-          <button
-            onClick={() => handleExport('json')}
-            disabled={isExporting}
-            className="px-3 py-2 text-xs font-medium bg-green-600/20 hover:bg-green-600/30 disabled:opacity-50 text-green-300 border border-green-600/30 rounded transition-colors"
-          >
-            JSON
-          </button>
-          <button
-            onClick={() => {
-              const text = Object.entries(deliverables)
-                .map(([k, v]) => `${k}:\n${Array.isArray(v) ? v.join('\n') : v}`)
-                .join('\n\n');
-              const blob = new Blob([text], { type: 'text/plain' });
-              const url = window.URL.createObjectURL(blob);
-              const a = document.createElement('a');
-              a.href = url;
-              a.download = 'deliverables.txt';
-              document.body.appendChild(a);
-              a.click();
-              document.body.removeChild(a);
-              window.URL.revokeObjectURL(url);
-              toast.success('Exported as TXT!', 2000);
-            }}
-            disabled={isExporting}
-            className="px-3 py-2 text-xs font-medium bg-gray-600/20 hover:bg-gray-600/30 disabled:opacity-50 text-gray-300 border border-gray-600/30 rounded transition-colors"
-          >
-            TXT
-          </button>
+        {/* Custom instruction */}
+        <div className="space-y-1.5 pt-1">
+          <label className="text-xs font-semibold text-[#4B5563]">Custom Refinement Prompt</label>
+          <div className="flex gap-2">
+            <input
+              type="text"
+              placeholder="e.g. 'Format key metrics as bullet points' or 'Make it suitable for social media'..."
+              value={refinementInstruction}
+              onChange={(e) => setRefinementInstruction(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && refinementInstruction.trim() && !isRefining) {
+                  handleApplyPreset('custom');
+                }
+              }}
+              className="flex-1 text-xs"
+            />
+            <button
+              type="button"
+              onClick={() => handleApplyPreset('custom')}
+              disabled={isRefining || !refinementInstruction.trim()}
+              className="px-5 py-2.5 text-xs font-bold bg-[#3B82F6] hover:bg-[#2563EB] text-white rounded-md transition-colors disabled:opacity-40 flex items-center gap-1.5 flex-shrink-0"
+            >
+              {isRefining && <RefreshCw className="w-3.5 h-3.5 animate-spin" />}
+              <span>Apply Prompt</span>
+            </button>
+          </div>
         </div>
       </div>
     </div>
   );
 };
+
+export default ReviewExport;

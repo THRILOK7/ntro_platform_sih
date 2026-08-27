@@ -1,6 +1,6 @@
 /**
- * NTRO Platform - Phases 1-5: Complete Enterprise Content Transformation
- * Ingestion → Generation → Refinement → Export → Analytics → TTS
+ * NTRO Platform - Full Width Centered Workspace (1200px)
+ * Complete Flat Design Content Transformation Platform
  */
 
 import React, { useState, useRef, useEffect } from "react"
@@ -8,14 +8,13 @@ import {
   Upload,
   X,
   Loader,
-  CheckCircle,
   AlertCircle,
   FileText,
-  Zap,
   RefreshCw,
   Download,
   Volume2,
   BarChart3,
+  Zap,
 } from "lucide-react"
 import type {
   IngestionParams,
@@ -40,9 +39,8 @@ import { ReviewExport } from "./components/ReviewExport"
 import { AnalyticsPanel } from "./components/AnalyticsPanel"
 import { AudioPlayer } from "./components/AudioPlayer"
 import { toast } from "./utils/toast"
-import "./App.css"
 
-// ==================== Type Definitions ====================
+// ==================== Types & Defaults ====================
 
 interface HealthStatus {
   operational: boolean
@@ -50,16 +48,7 @@ interface HealthStatus {
   latency?: number
 }
 
-interface OperationalMetrics {
-  parsingActive: boolean
-  generationActive: boolean
-  ttsActive: boolean
-  refinementActive: boolean
-  exportActive: boolean
-}
-
-type AppPhase = "input" | "ingesting" | "generating" | "complete" | "refining" | "exporting"
-
+type AppPhase = "input" | "ingesting" | "generating" | "complete"
 type ResultTab = "deliverables" | "refine" | "export" | "analytics" | "tts"
 
 interface AppState {
@@ -72,14 +61,11 @@ interface AppState {
   ttsAudioUrl: string | null
   error: string | null
   healthStatus: HealthStatus
-  showInputPanel: boolean
   resultTab: ResultTab
-  metrics: OperationalMetrics
   isLoadingAnalytics: boolean
   isGeneratingTTS: boolean
 }
 
-// Default parameters
 const DEFAULT_PARAMETERS: IngestionParams = {
   target_audience: TargetAudience.GENERAL_PUBLIC,
   tone: Tone.FORMAL,
@@ -88,7 +74,6 @@ const DEFAULT_PARAMETERS: IngestionParams = {
   selected_outputs: ["Executive Summary"],
 }
 
-// Output Deliverables Options
 const OUTPUT_OPTIONS = [
   "Video Package",
   "LinkedIn Post",
@@ -99,7 +84,6 @@ const OUTPUT_OPTIONS = [
   "Presentation",
 ]
 
-// Result tab definitions
 const RESULT_TABS: { id: ResultTab; label: string; icon: React.ReactNode }[] = [
   { id: "deliverables", label: "Deliverables", icon: <FileText className="w-4 h-4" /> },
   { id: "refine", label: "Refine", icon: <RefreshCw className="w-4 h-4" /> },
@@ -108,10 +92,9 @@ const RESULT_TABS: { id: ResultTab; label: string; icon: React.ReactNode }[] = [
   { id: "tts", label: "Audio", icon: <Volume2 className="w-4 h-4" /> },
 ]
 
-// ==================== App Component ====================
+// ==================== Main App Component ====================
 
-function App(): React.ReactElement {
-  // State management
+export function App(): React.ReactElement {
   const [appState, setAppState] = useState<AppState>({
     selectedFile: null,
     rawText: "",
@@ -126,15 +109,7 @@ function App(): React.ReactElement {
       lastChecked: new Date(),
       latency: undefined,
     },
-    showInputPanel: true,
     resultTab: "deliverables",
-    metrics: {
-      parsingActive: false,
-      generationActive: false,
-      ttsActive: false,
-      refinementActive: false,
-      exportActive: false,
-    },
     isLoadingAnalytics: false,
     isGeneratingTTS: false,
   })
@@ -143,16 +118,13 @@ function App(): React.ReactElement {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const dropZoneRef = useRef<HTMLDivElement>(null)
 
-  // Health check on mount
+  // Health check on mount and interval
   useEffect(() => {
     checkServiceHealth()
-    const healthInterval = setInterval(checkServiceHealth, 30000)
-    return () => clearInterval(healthInterval)
+    const interval = setInterval(checkServiceHealth, 30000)
+    return () => clearInterval(interval)
   }, [])
 
-  /**
-   * Ping backend health endpoint and measure latency
-   */
   const checkServiceHealth = async (): Promise<void> => {
     const startTime = performance.now()
     try {
@@ -179,15 +151,12 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Handle file selection
-   */
   const handleFileSelect = (file: File): void => {
     const maxSize = 500 * 1024 * 1024
     if (file.size > maxSize) {
       setAppState((prev) => ({
         ...prev,
-        error: `File size exceeds 500 MB limit. Your file: ${formatFileSize(file.size)}`,
+        error: `File size exceeds 500 MB limit (${formatFileSize(file.size)}).`,
       }))
       return
     }
@@ -199,9 +168,6 @@ function App(): React.ReactElement {
     }))
   }
 
-  /**
-   * Handle file input change
-   */
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>): void => {
     const files = e.currentTarget.files
     if (files && files.length > 0) {
@@ -209,9 +175,6 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Handle drag over
-   */
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
     e.stopPropagation()
@@ -220,9 +183,6 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Handle drag leave
-   */
   const handleDragLeave = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
     e.stopPropagation()
@@ -231,25 +191,18 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Handle drop
-   */
   const handleDrop = (e: React.DragEvent<HTMLDivElement>): void => {
     e.preventDefault()
     e.stopPropagation()
     if (dropZoneRef.current) {
       dropZoneRef.current.classList.remove("drag-active")
     }
-
     const files = e.dataTransfer.files
     if (files && files.length > 0) {
       handleFileSelect(files[0])
     }
   }
 
-  /**
-   * Clear file
-   */
   const clearFile = (): void => {
     setAppState((prev) => ({
       ...prev,
@@ -260,9 +213,6 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Update parameter
-   */
   const updateParameter = <K extends keyof IngestionParams>(
     key: K,
     value: IngestionParams[K]
@@ -273,9 +223,6 @@ function App(): React.ReactElement {
     }))
   }
 
-  /**
-   * Toggle output
-   */
   const toggleOutput = (output: string): void => {
     setParameters((prev) => ({
       ...prev,
@@ -285,14 +232,11 @@ function App(): React.ReactElement {
     }))
   }
 
-  /**
-   * Handle ingestion
-   */
   const handleIngest = async (): Promise<void> => {
     if (!appState.selectedFile && !appState.rawText.trim()) {
       setAppState((prev) => ({
         ...prev,
-        error: "Please provide either a file or raw text content.",
+        error: "Please provide either a file or paste text content.",
       }))
       return
     }
@@ -300,7 +244,7 @@ function App(): React.ReactElement {
     if (parameters.selected_outputs.length === 0) {
       setAppState((prev) => ({
         ...prev,
-        error: "Please select at least one output format.",
+        error: "Please select at least one target output format.",
       }))
       return
     }
@@ -330,7 +274,6 @@ function App(): React.ReactElement {
         fileInputRef.current.value = ""
       }
 
-      // Automatically start generation
       await handleGenerate(result)
     } catch (error) {
       const apiError = error as ApiError
@@ -342,16 +285,12 @@ function App(): React.ReactElement {
     }
   }
 
-  /**
-   * Handle generation and load analytics automatically
-   */
   const handleGenerate = async (ingestionResult: IngestionResponse): Promise<void> => {
     try {
       setAppState((prev) => ({
         ...prev,
         currentPhase: "generating",
         error: null,
-        metrics: { ...prev.metrics, generationActive: true },
       }))
 
       const result = await generateContent(ingestionResult.extracted_text, parameters)
@@ -360,13 +299,9 @@ function App(): React.ReactElement {
         ...prev,
         generationResult: result,
         currentPhase: "complete",
-        metrics: { ...prev.metrics, generationActive: false },
       }))
 
-      // Auto-load analytics
       await handleLoadAnalytics(result.deliverables)
-
-      // Show success toast
       toast.success("Content generation complete!", 3000)
     } catch (error) {
       const apiError = error as ApiError
@@ -374,50 +309,28 @@ function App(): React.ReactElement {
         ...prev,
         currentPhase: "input",
         error: apiError.message || "An unexpected error occurred during generation.",
-        metrics: { ...prev.metrics, generationActive: false },
       }))
       toast.error("Generation failed", 3000)
     }
   }
 
-  /**
-   * Load analytics for generated deliverables
-   */
   const handleLoadAnalytics = async (deliverables: Record<string, any>): Promise<void> => {
     try {
-      setAppState((prev) => ({
-        ...prev,
-        isLoadingAnalytics: true,
-        metrics: { ...prev.metrics, generationActive: true },
-      }))
-
+      setAppState((prev) => ({ ...prev, isLoadingAnalytics: true }))
       const analyticsData = await api.computeAnalytics(deliverables, parameters)
-
       setAppState((prev) => ({
         ...prev,
         analyticsResult: analyticsData.analytics,
         isLoadingAnalytics: false,
-        metrics: { ...prev.metrics, generationActive: false },
       }))
-
-      toast.success("Analytics computed!", 2000)
     } catch (error) {
       console.error("Analytics load error:", error)
-      setAppState((prev) => ({
-        ...prev,
-        isLoadingAnalytics: false,
-        metrics: { ...prev.metrics, generationActive: false },
-      }))
-      toast.error("Failed to load analytics", 2000)
+      setAppState((prev) => ({ ...prev, isLoadingAnalytics: false }))
     }
   }
 
-  /**
-   * Generate TTS audio for selected format
-   */
   const handleGenerateTTS = async (format: string): Promise<void> => {
     if (!appState.generationResult) return
-
     const content = appState.generationResult.deliverables[format]
     if (!content) {
       toast.error("Format not found", 2000)
@@ -425,12 +338,7 @@ function App(): React.ReactElement {
     }
 
     try {
-      setAppState((prev) => ({
-        ...prev,
-        isGeneratingTTS: true,
-        metrics: { ...prev.metrics, ttsActive: true },
-      }))
-
+      setAppState((prev) => ({ ...prev, isGeneratingTTS: true }))
       const contentText = Array.isArray(content) ? content.join(" ") : content
 
       const audioBlob = await api.generateTTS({
@@ -446,30 +354,19 @@ function App(): React.ReactElement {
         ...prev,
         ttsAudioUrl: audioUrl,
         isGeneratingTTS: false,
-        metrics: { ...prev.metrics, ttsActive: false },
       }))
-
       toast.success("Audio generated successfully!", 2000)
     } catch (error) {
       console.error("TTS generation error:", error)
-      setAppState((prev) => ({
-        ...prev,
-        isGeneratingTTS: false,
-        metrics: { ...prev.metrics, ttsActive: false },
-      }))
+      setAppState((prev) => ({ ...prev, isGeneratingTTS: false }))
       toast.error("Failed to generate audio", 2000)
     }
   }
 
-  /**
-   * Reset to input phase
-   */
   const handleReset = (): void => {
-    // Cleanup TTS audio URL
     if (appState.ttsAudioUrl) {
       URL.revokeObjectURL(appState.ttsAudioUrl)
     }
-
     setAppState((prev) => ({
       ...prev,
       currentPhase: "input",
@@ -480,7 +377,6 @@ function App(): React.ReactElement {
       error: null,
       selectedFile: null,
       rawText: "",
-      showInputPanel: true,
       resultTab: "deliverables",
       isLoadingAnalytics: false,
       isGeneratingTTS: false,
@@ -490,431 +386,375 @@ function App(): React.ReactElement {
     }
   }
 
-  // ==================== Render ====================
-
   const fileTypeInfo = appState.selectedFile
     ? getFileTypeInfo(appState.selectedFile.name)
     : null
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-slate-900">
-      {/* Header */}
-      <header className="sticky top-0 z-40 border-b border-slate-700/50 bg-slate-900/95 backdrop-blur-md">
-        <div className="mx-auto max-w-7xl px-6 py-5">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-indigo-500 to-blue-600 shadow-lg">
-                <Zap className="h-6 w-6 text-white" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-bold text-white">NTRO Platform</h1>
-                <p className="text-sm text-slate-400">Content Transformation Engine</p>
-              </div>
-            </div>
+    <div className="app-shell">
 
-            <div className="flex items-center gap-3">
-              <div
-                className={`flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all ${
-                  appState.healthStatus.operational
-                    ? "bg-emerald-500/20 text-emerald-300 border border-emerald-500/30"
-                    : "bg-amber-500/20 text-amber-300 border border-amber-500/30"
-                }`}
-              >
-                <div className={`h-2 w-2 rounded-full ${appState.healthStatus.operational ? "bg-emerald-400" : "bg-amber-400"}`} />
-                <span>
-                  {appState.healthStatus.operational
-                    ? `Online ${appState.healthStatus.latency ? `(${appState.healthStatus.latency}ms)` : ""}`
-                    : "Connecting..."}
-                </span>
-              </div>
+      {/* ── 1. Full-Width Header Bar (Inner Content 1200px Centered) ── */}
+      <header className="app-header">
+        <div className="header-inner">
+          <div className="flex items-center gap-3.5">
+            <div className="w-10 h-10 rounded-lg bg-[#3B82F6] text-white flex items-center justify-center font-bold flex-shrink-0">
+              <Zap className="w-5 h-5 fill-current" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-[#111827] tracking-tight leading-tight">NTRO Platform</h1>
+              <p className="text-xs text-[#6B7280]">Content Transformation Engine</p>
             </div>
           </div>
 
-          {/* Phase Indicator */}
-          {appState.currentPhase !== "input" && (
-            <div className="mx-auto max-w-7xl px-6">
-              <div className="mt-6 flex items-center gap-4 text-sm overflow-x-auto pb-3">
-                <div
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 whitespace-nowrap font-medium transition-all ${
-                    appState.currentPhase === "ingesting" ||
-                    appState.currentPhase === "generating" ||
-                    appState.currentPhase === "complete"
-                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                      : "bg-slate-700/50 text-slate-400 border border-slate-600/50"
-                  }`}
-                >
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                  <span>Phase 1: Ingest</span>
-                </div>
-                <div className="h-0.5 w-6 bg-slate-600/50" />
-                <div
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 whitespace-nowrap font-medium transition-all ${
-                    appState.currentPhase === "generating" ||
-                    appState.currentPhase === "complete"
-                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                      : "bg-slate-700/50 text-slate-400 border border-slate-600/50"
-                  }`}
-                >
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                  <span>Phase 2: Generate</span>
-                </div>
-                <div className="h-0.5 w-6 bg-slate-600/50" />
-                <div
-                  className={`flex items-center gap-2 rounded-lg px-4 py-2.5 whitespace-nowrap font-medium transition-all ${
-                    appState.currentPhase === "complete"
-                      ? "bg-indigo-500/20 text-indigo-300 border border-indigo-500/30"
-                      : "bg-slate-700/50 text-slate-400 border border-slate-600/50"
-                  }`}
-                >
-                  <div className="h-2 w-2 rounded-full bg-current" />
-                  <span>Phase 3-5: Results</span>
-                </div>
-              </div>
-            </div>
-          )}
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-[#F3F4F6] text-xs font-semibold">
+            <span
+              className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
+                appState.healthStatus.operational ? "bg-[#10B981]" : "bg-[#F59E0B]"
+              }`}
+            />
+            <span className="text-[#374151]">
+              {appState.healthStatus.operational
+                ? `Connected${appState.healthStatus.latency ? ` (${appState.healthStatus.latency}ms)` : ""}`
+                : "Connecting..."}
+            </span>
+          </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-7xl px-6 py-10">
-        {/* Error Alert */}
-        {appState.error && (
-          <div className="mb-8 flex items-start gap-4 rounded-xl border border-red-500/30 bg-red-500/10 p-5 text-red-400 backdrop-blur-sm">
-            <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-400" />
-            <div className="flex-1">
-              <p className="font-semibold text-red-300">Error Occurred</p>
-              <p className="mt-1 text-sm text-red-400/80">{appState.error}</p>
+      {/* ── 2. Full-Width Main Canvas (Inner Content 1200px Centered) ── */}
+      <main className="app-main">
+        <div className="workspace">
+
+          {/* Error Alert */}
+          {appState.error && (
+            <div className="flex items-start gap-3.5 rounded-lg border border-red-200 bg-red-50 p-4 text-red-700 text-sm">
+              <AlertCircle className="h-5 w-5 flex-shrink-0 mt-0.5 text-red-500" />
+              <div className="flex-1 font-medium">{appState.error}</div>
+              <button
+                onClick={() => setAppState((prev) => ({ ...prev, error: null }))}
+                className="text-red-500 hover:text-red-700 p-0.5"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
-            <button
-              onClick={() =>
-                setAppState((prev) => ({
-                  ...prev,
-                  error: null,
-                }))
-              }
-              className="text-red-400 hover:text-red-300 transition-colors"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
-        )}
+          )}
 
-        {/* Phase 1: Input */}
-        {appState.currentPhase === "input" && appState.showInputPanel && (
-          <div className="grid grid-cols-1 gap-10 lg:grid-cols-3">
-            {/* Column 1: Source Material (2 columns) */}
-            <div className="space-y-8 lg:col-span-2">
-              <div className="rounded-2xl bg-slate-800/50 p-8 backdrop-blur-sm border border-slate-700/50">
-                <h2 className="text-xl font-semibold text-white mb-7">Upload Your Content</h2>
-                
-                {/* Drag-Drop Area */}
-                <div
-                  ref={dropZoneRef}
-                  onDragOver={handleDragOver}
-                  onDragLeave={handleDragLeave}
-                  onDrop={handleDrop}
-                  className="relative rounded-2xl border-2 border-dashed border-slate-600/50 bg-slate-900/30 p-12 transition-all hover:border-indigo-500/50 hover:bg-slate-900/50 drag-zone cursor-pointer"
-                >
-                  <input
-                    ref={fileInputRef}
-                    type="file"
-                    onChange={handleFileInputChange}
-                    className="hidden"
-                    accept=".pdf,.docx,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tiff,.mp3,.wav,.m4a,.flac,.ogg,.mp4,.webm,.mov,.avi"
-                  />
+          {/* ── Phase 1: Input Workspace ──────────────────────────── */}
+          {appState.currentPhase === "input" && (
+            <div className="flex flex-col gap-8 w-full">
 
-                  {appState.selectedFile ? (
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-indigo-500/20 border border-indigo-500/30">
-                            <FileText className="h-6 w-6 text-indigo-400" />
+              {/* Page Introduction */}
+              <div className="border-b border-[#E5E7EB] pb-5">
+                <h2 className="text-3xl font-extrabold text-[#111827] tracking-tight">Content Transformation</h2>
+                <p className="text-base text-[#4B5563] mt-1.5">
+                  Upload source material or paste text to transform it into the formats you need.
+                </p>
+              </div>
+
+              {/* Source Input Area (Full 1200px Width) */}
+              <div className="flex flex-col gap-6 w-full">
+
+                {/* Upload Source Material */}
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="text-sm font-bold text-[#111827]">
+                    Upload Source Material
+                  </label>
+
+                  <div
+                    ref={dropZoneRef}
+                    onDragOver={handleDragOver}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    onClick={() => fileInputRef.current?.click()}
+                    className="source-dropzone"
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      onChange={handleFileInputChange}
+                      className="hidden"
+                      accept=".pdf,.docx,.png,.jpg,.jpeg,.gif,.bmp,.webp,.tiff,.mp3,.wav,.m4a,.flac,.ogg,.mp4,.webm,.mov,.avi"
+                    />
+
+                    {appState.selectedFile ? (
+                      <div
+                        className="flex items-center justify-between bg-white border border-[#E5E7EB] rounded-lg p-4"
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        <div className="flex items-center gap-3.5 text-left">
+                          <div className="w-12 h-12 rounded-lg bg-blue-50 text-[#3B82F6] flex items-center justify-center flex-shrink-0">
+                            <FileText className="h-6 w-6" />
                           </div>
-                          <div>
-                            <p className="font-medium text-white">
+                          <div className="min-w-0">
+                            <p className="text-sm font-bold text-[#111827] truncate">
                               {appState.selectedFile.name}
                             </p>
-                            <p className="text-sm text-slate-400 mt-1">
+                            <p className="text-xs text-[#6B7280] mt-0.5">
                               {fileTypeInfo?.label} • {formatFileSize(appState.selectedFile.size)}
                             </p>
                           </div>
                         </div>
-                        <button
-                          onClick={clearFile}
-                          className="text-slate-400 hover:text-slate-200 transition-colors"
-                        >
-                          <X className="h-6 w-6" />
-                        </button>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => fileInputRef.current?.click()}
+                            className="text-xs font-bold text-[#374151] hover:text-[#111827] px-4 py-2 rounded-md bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#D1D5DB]"
+                          >
+                            Replace
+                          </button>
+                          <button
+                            type="button"
+                            onClick={clearFile}
+                            className="text-[#6B7280] hover:text-[#111827] p-2 rounded-md hover:bg-[#F3F4F6]"
+                          >
+                            <X className="h-4 w-4" />
+                          </button>
+                        </div>
                       </div>
-                      <button
-                        onClick={() => fileInputRef.current?.click()}
-                        className="w-full rounded-xl border border-slate-600 bg-slate-900/50 hover:bg-slate-900/80 px-4 py-3 text-sm font-medium text-slate-200 transition-colors"
-                      >
-                        Choose Different File
-                      </button>
-                    </div>
-                  ) : (
-                    <div
-                      className="text-center"
-                      onClick={() => fileInputRef.current?.click()}
-                    >
-                      <Upload className="mx-auto h-14 w-14 text-slate-500 mb-4" />
-                      <p className="text-lg font-semibold text-slate-100">
-                        Drop your file or click to browse
-                      </p>
-                      <p className="mt-2 text-sm text-slate-400">
-                        PDF, DOCX, Images, Audio, Video (Max 500MB)
-                      </p>
-                    </div>
-                  )}
+                    ) : (
+                      <div className="flex flex-col items-center justify-center py-4">
+                        <div className="w-12 h-12 rounded-full bg-blue-50 text-[#3B82F6] flex items-center justify-center mb-3">
+                          <Upload className="h-6 w-6" />
+                        </div>
+                        <p className="text-base font-bold text-[#111827]">
+                          Drag &amp; drop your file, or <span className="text-[#3B82F6] underline cursor-pointer">click to browse</span>
+                        </p>
+                        <p className="text-xs text-[#6B7280] mt-1.5 font-medium">
+                          PDF · DOCX · Images · Audio · Video (Up to 500MB)
+                        </p>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Text Input */}
-                <div className="mt-8 space-y-3">
-                  <label className="block text-sm font-medium text-slate-200">
-                    Or Paste Your Text
+                {/* OR Separator */}
+                <div className="or-separator">
+                  <span>OR</span>
+                </div>
+
+                {/* Paste Text Content */}
+                <div className="flex flex-col gap-2 w-full">
+                  <label className="text-sm font-bold text-[#111827]">
+                    Paste Text Content
                   </label>
-                  <textarea
-                    value={appState.rawText}
-                    onChange={(e) =>
-                      setAppState((prev) => ({
-                        ...prev,
-                        rawText: e.currentTarget.value,
-                      }))
-                    }
-                    placeholder="Paste your content here..."
-                    rows={8}
-                    className="w-full rounded-xl border border-slate-600/50 bg-slate-900/50 px-5 py-4 text-sm text-slate-100 placeholder-slate-500 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                  />
-                  <p className="text-xs text-slate-400">
-                    {appState.rawText.length} characters
+
+                  <div className="relative w-full">
+                    <textarea
+                      value={appState.rawText}
+                      onChange={(e) =>
+                        setAppState((prev) => ({ ...prev, rawText: e.currentTarget.value }))
+                      }
+                      placeholder="Enter or paste text content to analyze directly..."
+                      rows={6}
+                      className="source-textarea"
+                    />
+                    <div className="absolute right-3.5 bottom-3.5 pointer-events-none text-xs font-mono font-semibold text-[#6B7280] bg-[#F3F4F6] px-2.5 py-1 rounded border border-[#E5E7EB]">
+                      {appState.rawText.length.toLocaleString()} chars
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. Configuration Grid (1fr / 1fr Balanced Columns) */}
+              <div className="config-grid">
+
+                {/* Left Column: Target Outputs */}
+                <div className="flex flex-col gap-3.5">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111827]">Target Outputs</h3>
+                    <p className="text-xs text-[#6B7280]">Select the deliverables you want to generate.</p>
+                  </div>
+
+                  <div className="config-card flex flex-col gap-2">
+                    {OUTPUT_OPTIONS.map((option) => {
+                      const isChecked = parameters.selected_outputs.includes(option)
+                      return (
+                        <label
+                          key={option}
+                          className={`flex items-center gap-3.5 cursor-pointer select-none p-2.5 rounded-md transition-all ${
+                            isChecked ? "bg-blue-50/70 text-[#111827]" : "hover:bg-white text-[#4B5563]"
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isChecked}
+                            onChange={() => toggleOutput(option)}
+                          />
+                          <span className={`text-sm ${isChecked ? "font-bold text-[#111827]" : "font-medium"}`}>
+                            {option}
+                          </span>
+                        </label>
+                      )
+                    })}
+                  </div>
+                </div>
+
+                {/* Right Column: Ingestion Settings */}
+                <div className="flex flex-col gap-3.5">
+                  <div>
+                    <h3 className="text-base font-bold text-[#111827]">Ingestion Settings</h3>
+                    <p className="text-xs text-[#6B7280]">Configure target audience, tone, language, and depth.</p>
+                  </div>
+
+                  <div className="config-card flex flex-col gap-4">
+                    {/* Target Audience */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#4B5563]">Target Audience</label>
+                      <select
+                        value={parameters.target_audience}
+                        onChange={(e) =>
+                          updateParameter("target_audience", e.currentTarget.value as TargetAudience)
+                        }
+                        className="select-input"
+                      >
+                        <option value={TargetAudience.GENERAL_PUBLIC}>{TargetAudience.GENERAL_PUBLIC}</option>
+                        <option value={TargetAudience.EXECUTIVES}>{TargetAudience.EXECUTIVES}</option>
+                        <option value={TargetAudience.TECHNICAL_EXPERTS}>{TargetAudience.TECHNICAL_EXPERTS}</option>
+                        <option value={TargetAudience.MEDIA}>{TargetAudience.MEDIA}</option>
+                      </select>
+                    </div>
+
+                    {/* Tone */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#4B5563]">Tone</label>
+                      <select
+                        value={parameters.tone}
+                        onChange={(e) =>
+                          updateParameter("tone", e.currentTarget.value as Tone)
+                        }
+                        className="select-input"
+                      >
+                        <option value={Tone.FORMAL}>{Tone.FORMAL}</option>
+                        <option value={Tone.URGENT}>{Tone.URGENT}</option>
+                        <option value={Tone.CONVERSATIONAL}>{Tone.CONVERSATIONAL}</option>
+                        <option value={Tone.REASSURING}>{Tone.REASSURING}</option>
+                      </select>
+                    </div>
+
+                    {/* Output Language */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#4B5563]">Output Language</label>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[Language.ENGLISH, Language.HINDI].map((lang) => (
+                          <button
+                            key={lang}
+                            type="button"
+                            onClick={() => updateParameter("language", lang)}
+                            className={`py-2.5 text-xs font-bold rounded-md border transition-all ${
+                              parameters.language === lang
+                                ? "bg-[#3B82F6] border-[#3B82F6] text-white"
+                                : "bg-white border-[#D1D5DB] text-[#4B5563] hover:bg-[#F3F4F6]"
+                            }`}
+                          >
+                            {lang}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Detail Level */}
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs font-bold uppercase tracking-wider text-[#4B5563]">Detail Level</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        {[DetailLevel.BRIEF, DetailLevel.STANDARD, DetailLevel.COMPREHENSIVE].map((level) => (
+                          <button
+                            key={level}
+                            type="button"
+                            onClick={() => updateParameter("detail_level", level)}
+                            className={`py-2.5 text-xs font-bold rounded-md border transition-all truncate px-1 ${
+                              parameters.detail_level === level
+                                ? "bg-[#3B82F6] border-[#3B82F6] text-white"
+                                : "bg-white border-[#D1D5DB] text-[#4B5563] hover:bg-[#F3F4F6]"
+                            }`}
+                          >
+                            {level}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Primary CTA Button (Full Workspace Width) */}
+              <div className="pt-2">
+                <button
+                  type="button"
+                  onClick={handleIngest}
+                  disabled={
+                    (!appState.selectedFile && !appState.rawText.trim()) ||
+                    parameters.selected_outputs.length === 0
+                  }
+                  className="btn-primary-generate"
+                >
+                  <Zap className="w-5 h-5 fill-current" />
+                  <span>Process &amp; Generate</span>
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* ── Phase 2: Processing State ─────────────────────────── */}
+          {(appState.currentPhase === "ingesting" || appState.currentPhase === "generating") && (
+            <div className="py-28 flex flex-col items-center justify-center text-center gap-4 w-full">
+              <Loader className="h-12 w-12 text-[#3B82F6] animate-spin" />
+              <div>
+                <h2 className="text-2xl font-bold text-[#111827]">
+                  {appState.currentPhase === "ingesting" ? "Analyzing Source Content" : "Generating Deliverables"}
+                </h2>
+                <p className="text-sm text-[#6B7280] mt-1.5 max-w-md">
+                  {appState.currentPhase === "ingesting"
+                    ? "Parsing and extracting document structure..."
+                    : "Synthesizing multi-format content tailored to your audience..."}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {/* ── Phase 3: Results State ────────────────────────────── */}
+          {appState.currentPhase === "complete" && appState.generationResult && (
+            <div className="flex flex-col gap-6 w-full">
+
+              {/* Results Header */}
+              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-[#111827]">Transformation Complete</h2>
+                  <p className="text-xs text-[#6B7280] mt-0.5">
+                    Generated {Object.keys(appState.generationResult.deliverables).length} deliverables in{" "}
+                    {appState.generationResult.execution_time_seconds.toFixed(2)}s
                   </p>
                 </div>
-              </div>
-            </div>
-
-            {/* Column 2: Parameters */}
-            <div className="space-y-8">
-              {/* Output Deliverables */}
-              <div className="rounded-2xl bg-slate-800/50 p-7 backdrop-blur-sm border border-slate-700/50">
-                <h3 className="text-sm font-semibold text-white mb-5">
-                  Output Formats
-                </h3>
-                <div className="space-y-3">
-                  {OUTPUT_OPTIONS.map((option) => (
-                    <label
-                      key={option}
-                      className="flex items-center gap-3 cursor-pointer p-3 rounded-lg hover:bg-slate-700/30 transition-colors"
-                    >
-                      <input
-                        type="checkbox"
-                        checked={parameters.selected_outputs.includes(option)}
-                        onChange={() => toggleOutput(option)}
-                        className="h-4 w-4 rounded border-slate-500 text-indigo-500 focus:ring-indigo-500"
-                      />
-                      <span className="text-sm text-slate-200">{option}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-
-              {/* Target Audience */}
-              <div className="rounded-2xl bg-slate-800/50 p-7 backdrop-blur-sm border border-slate-700/50">
-                <label className="block text-sm font-semibold text-white mb-4">
-                  Target Audience
-                </label>
-                <select
-                  value={parameters.target_audience}
-                  onChange={(e) =>
-                    updateParameter("target_audience", e.currentTarget.value as TargetAudience)
-                  }
-                  className="w-full rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+                <button
+                  type="button"
+                  onClick={handleReset}
+                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#111827] bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] rounded-md transition-colors"
                 >
-                  <option value={TargetAudience.GENERAL_PUBLIC}>{TargetAudience.GENERAL_PUBLIC}</option>
-                  <option value={TargetAudience.EXECUTIVES}>{TargetAudience.EXECUTIVES}</option>
-                  <option value={TargetAudience.TECHNICAL_EXPERTS}>{TargetAudience.TECHNICAL_EXPERTS}</option>
-                  <option value={TargetAudience.MEDIA}>{TargetAudience.MEDIA}</option>
-                </select>
+                  <RefreshCw className="h-3.5 w-3.5" />
+                  <span>New Transformation</span>
+                </button>
               </div>
 
-              {/* Tone */}
-              <div className="rounded-2xl bg-slate-800/50 p-7 backdrop-blur-sm border border-slate-700/50">
-                <label className="block text-sm font-semibold text-white mb-4">
-                  Tone
-                </label>
-                <select
-                  value={parameters.tone}
-                  onChange={(e) =>
-                    updateParameter("tone", e.currentTarget.value as Tone)
-                  }
-                  className="w-full rounded-lg border border-slate-600 bg-slate-900/50 px-4 py-2.5 text-sm text-slate-100 transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
-                >
-                  <option value={Tone.FORMAL}>{Tone.FORMAL}</option>
-                  <option value={Tone.URGENT}>{Tone.URGENT}</option>
-                  <option value={Tone.CONVERSATIONAL}>{Tone.CONVERSATIONAL}</option>
-                  <option value={Tone.REASSURING}>{Tone.REASSURING}</option>
-                </select>
-              </div>
-
-              {/* Language Toggle */}
-              <div className="rounded-2xl bg-slate-800/50 p-7 backdrop-blur-sm border border-slate-700/50">
-                <label className="block text-sm font-semibold text-white mb-4">
-                  Language
-                </label>
-                <div className="grid grid-cols-2 gap-3">
-                  {[Language.ENGLISH, Language.HINDI].map((lang) => (
-                    <button
-                      key={lang}
-                      onClick={() => updateParameter("language", lang)}
-                      className={`rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
-                        parameters.language === lang
-                          ? "border border-indigo-500/50 bg-indigo-500/20 text-indigo-200"
-                          : "border border-slate-600 bg-slate-900/50 text-slate-300 hover:bg-slate-800/50"
-                      }`}
-                    >
-                      {lang}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Detail Level */}
-              <div className="rounded-2xl bg-slate-800/50 p-7 backdrop-blur-sm border border-slate-700/50">
-                <label className="block text-sm font-semibold text-white mb-4">
-                  Detail Level
-                </label>
-                <div className="space-y-2.5">
-                  {[DetailLevel.BRIEF, DetailLevel.STANDARD, DetailLevel.COMPREHENSIVE].map(
-                    (level) => (
-                      <label
-                        key={level}
-                        className={`flex cursor-pointer items-center gap-3 rounded-lg border px-4 py-2.5 transition-all ${
-                          parameters.detail_level === level
-                            ? "border-indigo-500/50 bg-indigo-500/10"
-                            : "border-slate-600 bg-slate-900/50 hover:border-slate-500"
-                        }`}
-                      >
-                        <input
-                          type="radio"
-                          name="detail_level"
-                          value={level}
-                          checked={parameters.detail_level === level}
-                          onChange={() => updateParameter("detail_level", level)}
-                          className="h-4 w-4"
-                        />
-                        <span className="text-sm text-slate-200">{level}</span>
-                      </label>
-                    )
-                  )}
-                </div>
-              </div>
-
-              {/* Primary Action Button */}
-              <button
-                onClick={handleIngest}
-                disabled={
-                  appState.currentPhase !== "input" ||
-                  (!appState.selectedFile && !appState.rawText.trim())
-                }
-                className="w-full rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 px-6 py-4 font-semibold text-white transition-all hover:shadow-lg hover:shadow-indigo-500/30 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {appState.currentPhase !== "input" ? (
-                  <>
-                    <Loader className="h-5 w-5 animate-spin" />
-                    Processing...
-                  </>
-                ) : (
-                  <>
-                    <Upload className="h-5 w-5" />
-                    Process & Generate
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Phase 1-2: Processing Indicator */}
-        {(appState.currentPhase === "ingesting" || appState.currentPhase === "generating") && (
-          <div className="flex flex-col items-center justify-center space-y-10 py-20 rounded-2xl bg-slate-800/50 border border-slate-700/50 backdrop-blur-sm">
-            <div className="space-y-6 text-center max-w-md">
-              <div className="flex items-center justify-center gap-4">
-                <Loader className="h-10 w-10 animate-spin text-indigo-400" />
-                <h2 className="text-3xl font-bold text-white">
-                  {appState.currentPhase === "ingesting"
-                    ? "Analyzing Content"
-                    : "Generating Content"}
-                </h2>
-              </div>
-              <p className="text-slate-300 text-base leading-relaxed">
-                {appState.currentPhase === "ingesting"
-                  ? "Extracting and analyzing your source material to prepare for generation..."
-                  : "Creating targeted multi-platform content customized to your specifications..."}
-              </p>
-            </div>
-
-            {/* Progress Steps */}
-            <div className="w-full max-w-md space-y-4 px-6">
-              {appState.currentPhase === "ingesting" && (
-                <>
-                  <div className="flex items-center gap-4 rounded-xl bg-emerald-500/10 p-4 border border-emerald-500/30">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-400" />
-                    <span className="text-sm font-medium text-emerald-200">Validating input</span>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-xl bg-indigo-500/10 p-4 border border-indigo-500/30">
-                    <Loader className="h-5 w-5 animate-spin flex-shrink-0 text-indigo-400" />
-                    <span className="text-sm font-medium text-indigo-200">Parsing content</span>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-xl bg-slate-700/20 p-4 border border-slate-600/30">
-                    <div className="h-5 w-5 rounded-full border-2 border-slate-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-slate-300">Computing metrics</span>
-                  </div>
-                </>
-              )}
-
-              {appState.currentPhase === "generating" && (
-                <>
-                  <div className="flex items-center gap-4 rounded-xl bg-emerald-500/10 p-4 border border-emerald-500/30">
-                    <CheckCircle className="h-5 w-5 flex-shrink-0 text-emerald-400" />
-                    <span className="text-sm font-medium text-emerald-200">Ingestion complete</span>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-xl bg-indigo-500/10 p-4 border border-indigo-500/30">
-                    <Loader className="h-5 w-5 animate-spin flex-shrink-0 text-indigo-400" />
-                    <span className="text-sm font-medium text-indigo-200">Generating outputs</span>
-                  </div>
-                  <div className="flex items-center gap-4 rounded-xl bg-slate-700/20 p-4 border border-slate-600/30">
-                    <div className="h-5 w-5 rounded-full border-2 border-slate-500 flex-shrink-0" />
-                    <span className="text-sm font-medium text-slate-300">Computing analytics</span>
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Phase 2-5: Deliverables & Refinement */}
-        {appState.currentPhase === "complete" && appState.generationResult && (
-          <div className="space-y-6">
-            {/* Result Tabs */}
-            <div className="rounded-lg bg-white border border-gray-200 shadow-sm overflow-hidden">
-              <div className="flex gap-0 border-b border-gray-200 overflow-x-auto">
+              {/* Navigation Tabs */}
+              <div className="flex border-b border-[#E5E7EB] gap-2 overflow-x-auto">
                 {RESULT_TABS.map((tab) => (
                   <button
                     key={tab.id}
+                    type="button"
                     onClick={() => setAppState((prev) => ({ ...prev, resultTab: tab.id }))}
-                    className={`flex items-center gap-2 px-4 py-4 text-sm font-medium whitespace-nowrap transition-colors border-b-2 ${
+                    className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 rounded-none transition-colors whitespace-nowrap ${
                       appState.resultTab === tab.id
-                        ? "border-blue-600 text-blue-600 bg-blue-50"
-                        : "border-transparent text-gray-600 hover:text-gray-900 hover:bg-gray-50"
+                        ? "border-[#3B82F6] text-[#3B82F6]"
+                        : "border-transparent text-[#6B7280] hover:text-[#111827]"
                     }`}
                   >
                     {tab.icon}
-                    {tab.label}
+                    <span>{tab.label}</span>
                   </button>
                 ))}
               </div>
 
-              {/* Tab Content */}
-              <div className="p-6">
+              {/* Tab Contents */}
+              <div className="pt-2">
                 {appState.resultTab === "deliverables" && (
                   <DeliverablesWorkspace
                     deliverables={appState.generationResult.deliverables}
@@ -924,138 +764,56 @@ function App(): React.ReactElement {
                   />
                 )}
 
-                {appState.resultTab === "refine" && appState.generationResult && (
+                {appState.resultTab === "refine" && (
                   <ReviewExport
                     deliverables={appState.generationResult.deliverables}
                     parameters={parameters}
                   />
                 )}
 
-                {appState.resultTab === "export" && appState.generationResult && (
+                {appState.resultTab === "export" && (
                   <div className="space-y-4">
-                    <h3 className="text-lg font-semibold text-gray-900">Download Your Content</h3>
-                    <p className="text-sm text-gray-600">
-                      Export your generated content in multiple formats
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <h3 className="text-base font-bold text-[#111827]">Export Deliverables</h3>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+                      {[
+                        { format: "pdf" as const, label: "Export PDF", icon: "📄" },
+                        { format: "docx" as const, label: "Export Word", icon: "📝" },
+                        { format: "json" as const, label: "Export JSON", icon: "⚙️" },
+                      ].map(({ format, label, icon }) => (
+                        <button
+                          key={format}
+                          type="button"
+                          onClick={() => {
+                            api
+                              .exportDeliverables(
+                                appState.generationResult!.deliverables,
+                                parameters,
+                                format
+                              )
+                              .then((blob) => {
+                                const url = window.URL.createObjectURL(blob)
+                                const a = document.createElement("a")
+                                a.href = url
+                                a.download = `deliverables.${format}`
+                                document.body.appendChild(a)
+                                a.click()
+                                document.body.removeChild(a)
+                                window.URL.revokeObjectURL(url)
+                                toast.success(`${format.toUpperCase()} exported!`, 2000)
+                              })
+                              .catch(() => {
+                                toast.error(`${format.toUpperCase()} export failed`, 2000)
+                              })
+                          }}
+                          className="flex flex-col items-center justify-center p-5 bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/30 rounded-lg text-xs font-bold text-[#111827] transition-colors gap-2"
+                        >
+                          <span className="text-2xl">{icon}</span>
+                          <span>{label}</span>
+                        </button>
+                      ))}
+
                       <button
-                        onClick={() => {
-                          setAppState((prev) => ({
-                            ...prev,
-                            metrics: { ...prev.metrics, exportActive: true },
-                          }))
-                          api
-                            .exportDeliverables(
-                              appState.generationResult!.deliverables,
-                              parameters,
-                              "pdf"
-                            )
-                            .then((blob) => {
-                              const url = window.URL.createObjectURL(blob)
-                              const a = document.createElement("a")
-                              a.href = url
-                              a.download = `deliverables_${appState.generationResult!.generation_id.slice(0, 8)}.pdf`
-                              document.body.appendChild(a)
-                              a.click()
-                              document.body.removeChild(a)
-                              window.URL.revokeObjectURL(url)
-                              toast.success("PDF downloaded!", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                            .catch(() => {
-                              toast.error("PDF export failed", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                        }}
-                        className="px-4 py-3 bg-red-50 hover:bg-red-100 border border-red-200 text-red-700 rounded-lg font-medium transition-colors text-center"
-                      >
-                        📄 PDF
-                      </button>
-                      <button
-                        onClick={() => {
-                          setAppState((prev) => ({
-                            ...prev,
-                            metrics: { ...prev.metrics, exportActive: true },
-                          }))
-                          api
-                            .exportDeliverables(
-                              appState.generationResult!.deliverables,
-                              parameters,
-                              "docx"
-                            )
-                            .then((blob) => {
-                              const url = window.URL.createObjectURL(blob)
-                              const a = document.createElement("a")
-                              a.href = url
-                              a.download = `deliverables_${appState.generationResult!.generation_id.slice(0, 8)}.docx`
-                              document.body.appendChild(a)
-                              a.click()
-                              document.body.removeChild(a)
-                              window.URL.revokeObjectURL(url)
-                              toast.success("DOCX downloaded!", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                            .catch(() => {
-                              toast.error("DOCX export failed", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                        }}
-                        className="px-4 py-3 bg-blue-50 hover:bg-blue-100 border border-blue-200 text-blue-700 rounded-lg font-medium transition-colors text-center"
-                      >
-                        📊 DOCX
-                      </button>
-                      <button
-                        onClick={() => {
-                          setAppState((prev) => ({
-                            ...prev,
-                            metrics: { ...prev.metrics, exportActive: true },
-                          }))
-                          api
-                            .exportDeliverables(
-                              appState.generationResult!.deliverables,
-                              parameters,
-                              "json"
-                            )
-                            .then((blob) => {
-                              const url = window.URL.createObjectURL(blob)
-                              const a = document.createElement("a")
-                              a.href = url
-                              a.download = `deliverables_${appState.generationResult!.generation_id.slice(0, 8)}.json`
-                              document.body.appendChild(a)
-                              a.click()
-                              document.body.removeChild(a)
-                              window.URL.revokeObjectURL(url)
-                              toast.success("JSON downloaded!", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                            .catch(() => {
-                              toast.error("JSON export failed", 2000)
-                              setAppState((prev) => ({
-                                ...prev,
-                                metrics: { ...prev.metrics, exportActive: false },
-                              }))
-                            })
-                        }}
-                        className="px-4 py-3 bg-green-50 hover:bg-green-100 border border-green-200 text-green-700 rounded-lg font-medium transition-colors text-center"
-                      >
-                        {} JSON
-                      </button>
-                      <button
+                        type="button"
                         onClick={() => {
                           const text = Object.entries(appState.generationResult!.deliverables)
                             .map(([k, v]) => `${k}:\n${Array.isArray(v) ? v.join("\n") : v}`)
@@ -1064,16 +822,17 @@ function App(): React.ReactElement {
                           const url = window.URL.createObjectURL(blob)
                           const a = document.createElement("a")
                           a.href = url
-                          a.download = `deliverables.txt`
+                          a.download = "deliverables.txt"
                           document.body.appendChild(a)
                           a.click()
                           document.body.removeChild(a)
                           window.URL.revokeObjectURL(url)
-                          toast.success("TXT downloaded!", 2000)
+                          toast.success("TXT exported!", 2000)
                         }}
-                        className="px-4 py-3 bg-gray-50 hover:bg-gray-100 border border-gray-200 text-gray-700 rounded-lg font-medium transition-colors text-center"
+                        className="flex flex-col items-center justify-center p-5 bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/30 rounded-lg text-xs font-bold text-[#111827] transition-colors gap-2"
                       >
-                        📝 TXT
+                        <span className="text-2xl">📋</span>
+                        <span>Export TXT</span>
                       </button>
                     </div>
                   </div>
@@ -1089,78 +848,40 @@ function App(): React.ReactElement {
                 {appState.resultTab === "tts" && (
                   <div className="space-y-4">
                     <div>
-                      <h3 className="text-lg font-semibold text-gray-900 mb-2">Generate Audio</h3>
-                      <p className="text-sm text-gray-600 mb-4">
-                        Convert your content to speech in multiple languages
-                      </p>
-
-                      <div className="space-y-3">
-                        <label className="block text-sm font-medium text-gray-900">
-                          Select content to narrate:
-                        </label>
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                          {Object.keys(appState.generationResult.deliverables).map(
-                            (format) => (
-                              <button
-                                key={format}
-                                onClick={() => handleGenerateTTS(format)}
-                                disabled={appState.isGeneratingTTS}
-                                className="px-4 py-2 bg-purple-50 hover:bg-purple-100 disabled:opacity-50 border border-purple-200 text-purple-700 rounded-lg font-medium transition-colors text-sm"
-                              >
-                                {appState.isGeneratingTTS ? (
-                                  <>
-                                    <Loader className="w-4 h-4 inline mr-2 animate-spin" />
-                                    Generating...
-                                  </>
-                                ) : (
-                                  <>
-                                    <Volume2 className="w-4 h-4 inline mr-2" />
-                                    {format}
-                                  </>
-                                )}
-                              </button>
-                            )
-                          )}
-                        </div>
-                      </div>
+                      <h3 className="text-base font-bold text-[#111827]">Synthesize Speech Audio</h3>
+                      <p className="text-xs text-[#6B7280]">Select a deliverable format to generate narrated speech audio.</p>
                     </div>
 
-                    {appState.ttsAudioUrl && (
-                      <div className="mt-6 pt-6 border-t border-gray-200">
-                        <AudioPlayer
-                          audioUrl={appState.ttsAudioUrl}
-                          title="Generated Narration"
-                          isLoading={appState.isGeneratingTTS}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {Object.keys(appState.generationResult.deliverables).map((format) => (
+                        <button
+                          key={format}
+                          type="button"
+                          onClick={() => handleGenerateTTS(format)}
+                          disabled={appState.isGeneratingTTS}
+                          className="flex items-center gap-2 p-3 bg-[#F9FAFB] border border-[#E5E7EB] hover:border-[#3B82F6] hover:bg-blue-50/30 rounded-lg text-xs font-semibold text-[#111827] transition-colors"
+                        >
+                          <Volume2 className="h-4 w-4 text-[#3B82F6] flex-shrink-0" />
+                          <span className="truncate">{format}</span>
+                        </button>
+                      ))}
+                    </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-3">
-              <button
-                onClick={handleReset}
-                className="flex-1 rounded-lg bg-gray-100 hover:bg-gray-200 px-4 py-3 font-medium text-gray-900 transition-colors border border-gray-200"
-              >
-                Start New Pipeline
-              </button>
-              <button
-                onClick={() =>
-                  setAppState((prev) => ({
-                    ...prev,
-                    showInputPanel: !prev.showInputPanel,
-                  }))
-                }
-                className="flex-1 rounded-lg bg-gray-50 hover:bg-gray-100 px-4 py-3 font-medium text-gray-700 transition-colors border border-gray-200"
-              >
-                {appState.showInputPanel ? "Hide Input" : "Show Input"}
-              </button>
+                  {appState.ttsAudioUrl && (
+                    <div className="pt-4 border-t border-[#E5E7EB]">
+                      <AudioPlayer
+                        audioUrl={appState.ttsAudioUrl}
+                        title="Speech Playback"
+                        isLoading={appState.isGeneratingTTS}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         )}
+        </div>
       </main>
     </div>
   )

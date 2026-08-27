@@ -1,13 +1,12 @@
 /**
  * DeliverablesWorkspace Component
- * Enterprise-grade deliverable viewer for Phase 2 generated content
+ * Flat design deliverable viewer for generated content.
  */
 
 import React, { useState } from "react"
 import {
   Copy,
   CheckCircle,
-  AlertCircle,
   FileText,
   Share2,
   Zap,
@@ -15,6 +14,9 @@ import {
   FileVideo,
   Palette,
   Presentation,
+  Clock,
+  KeyRound,
+  X,
 } from "lucide-react"
 
 export interface Deliverable {
@@ -30,13 +32,13 @@ export interface DeliverablesWorkspaceProps {
 }
 
 const FORMAT_ICONS: Record<string, React.ReactNode> = {
-  "Executive Summary": <FileText className="h-5 w-5" />,
-  "LinkedIn Post": <Share2 className="h-5 w-5" />,
-  "Twitter/X Post": <Zap className="h-5 w-5" />,
-  Advisory: <AlertTriangle className="h-5 w-5" />,
-  "Video Package": <FileVideo className="h-5 w-5" />,
-  Infographic: <Palette className="h-5 w-5" />,
-  Presentation: <Presentation className="h-5 w-5" />,
+  "Executive Summary": <FileText className="h-4 w-4" />,
+  "LinkedIn Post": <Share2 className="h-4 w-4" />,
+  "Twitter/X Post": <Zap className="h-4 w-4" />,
+  Advisory: <AlertTriangle className="h-4 w-4" />,
+  "Video Package": <FileVideo className="h-4 w-4" />,
+  Infographic: <Palette className="h-4 w-4" />,
+  Presentation: <Presentation className="h-4 w-4" />,
 }
 
 export const DeliverablesWorkspace: React.FC<DeliverablesWorkspaceProps> = ({
@@ -45,9 +47,7 @@ export const DeliverablesWorkspace: React.FC<DeliverablesWorkspaceProps> = ({
   generationId,
   onClose,
 }) => {
-  const [activeTab, setActiveTab] = useState<string>(
-    Object.keys(deliverables)[0] || ""
-  )
+  const [activeTab, setActiveTab] = useState<string>(Object.keys(deliverables)[0] || "")
   const [copiedFormat, setCopiedFormat] = useState<string | null>(null)
 
   const handleCopy = (format: string, content: string | string[]) => {
@@ -60,7 +60,7 @@ export const DeliverablesWorkspace: React.FC<DeliverablesWorkspaceProps> = ({
 
   const getWordCount = (content: string | string[]): number => {
     const text = Array.isArray(content) ? content.join(" ") : content
-    return text.split(/\s+/).length
+    return text.trim().split(/\s+/).filter(Boolean).length
   }
 
   const getCharCount = (content: string | string[]): number => {
@@ -71,206 +71,140 @@ export const DeliverablesWorkspace: React.FC<DeliverablesWorkspaceProps> = ({
   const activeContent = deliverables[activeTab]
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CheckCircle className="h-6 w-6 text-emerald-500" />
-            <div>
-              <h2 className="text-xl font-bold text-slate-100">
-                Content Generation Complete
-              </h2>
-              <p className="mt-1 text-sm text-slate-400">
-                {Object.keys(deliverables).length} deliverable(s) generated in{" "}
-                {executionTime}s
-              </p>
-            </div>
+    <div className="space-y-4">
+      {/* Top Metadata Header Bar */}
+      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg px-4 py-2.5 text-xs text-[#6B7280]">
+        <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1.5 font-mono">
+            <KeyRound className="w-3.5 h-3.5 text-[#3B82F6]" />
+            <span className="font-semibold text-[#111827]">ID:</span> {generationId.slice(0, 8)}
           </div>
-          {onClose && (
-            <button
-              onClick={onClose}
-              className="text-slate-400 hover:text-slate-200"
-            >
-              ✕
-            </button>
-          )}
+          <div className="flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5 text-[#10B981]" />
+            <span className="font-semibold text-[#111827]">Time:</span> {executionTime.toFixed(2)}s
+          </div>
         </div>
 
-        {/* Metadata */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          <div className="rounded-lg bg-slate-800 px-3 py-1 text-xs font-mono text-slate-300">
-            ID: {generationId.slice(0, 8)}
-          </div>
-          <div className="rounded-lg bg-slate-800 px-3 py-1 text-xs text-slate-300">
-            {Object.keys(deliverables).length} formats
-          </div>
-          <div className="rounded-lg bg-slate-800 px-3 py-1 text-xs text-slate-300">
-            {executionTime.toFixed(2)}s execution
-          </div>
-        </div>
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            className="text-[#6B7280] hover:text-[#111827] p-1 rounded hover:bg-[#E5E7EB]"
+            aria-label="Close workspace"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
-      {/* Tabs Navigation */}
-      <div className="flex flex-wrap gap-2 border-b border-slate-800 pb-4">
+      {/* Format Selector Bar */}
+      <div className="flex flex-wrap gap-2 border-b border-[#E5E7EB] pb-3">
         {Object.entries(deliverables).map(([format, content]) => (
           <button
             key={format}
+            type="button"
             onClick={() => setActiveTab(format)}
-            className={`flex items-center gap-2 rounded-lg px-4 py-2 transition-all ${
+            className={`flex items-center gap-2 rounded-md px-3.5 py-2 text-xs font-semibold transition-colors ${
               activeTab === format
-                ? "border-b-2 border-cyan-500 bg-cyan-500/10 text-cyan-300"
-                : "border-slate-700 text-slate-400 hover:text-slate-300"
+                ? "bg-[#3B82F6] text-white"
+                : "bg-[#F3F4F6] text-[#4B5563] hover:text-[#111827] hover:bg-[#E5E7EB]"
             }`}
           >
             {FORMAT_ICONS[format] || <FileText className="h-4 w-4" />}
-            <span className="text-sm font-medium">{format}</span>
+            <span>{format}</span>
             {Array.isArray(content) && (
-              <span className="ml-1 rounded bg-slate-700 px-2 py-0.5 text-xs">
-                {content.length}
+              <span className="text-[10px] opacity-80 font-mono">
+                ({content.length})
               </span>
             )}
           </button>
         ))}
       </div>
 
-      {/* Active Deliverable Content */}
+      {/* Active Deliverable Viewer */}
       {activeContent && (
-        <div className="space-y-4 rounded-lg border border-slate-800 bg-slate-900/50 p-6">
-          {/* Format Header */}
-          <div className="flex items-center justify-between border-b border-slate-800 pb-4">
+        <div className="bg-white border border-[#E5E7EB] rounded-lg p-5 space-y-4">
+          <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-3">
             <div>
-              <h3 className="flex items-center gap-2 text-lg font-semibold text-slate-100">
-                {FORMAT_ICONS[activeTab] || <FileText className="h-5 w-5" />}
-                {activeTab}
-              </h3>
-              <p className="mt-2 text-xs text-slate-400">
-                {getCharCount(activeContent)} chars • {getWordCount(activeContent)} words
+              <h3 className="text-base font-bold text-[#111827]">{activeTab}</h3>
+              <p className="text-xs text-[#6B7280] mt-0.5">
+                {getWordCount(activeContent).toLocaleString()} words • {getCharCount(activeContent).toLocaleString()} characters
               </p>
             </div>
+
             <button
+              type="button"
               onClick={() => handleCopy(activeTab, activeContent)}
-              className="flex items-center gap-2 rounded-lg bg-slate-800 px-3 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-[#F3F4F6] hover:bg-[#E5E7EB] text-[#111827] border border-[#E5E7EB] rounded-md transition-colors"
             >
               {copiedFormat === activeTab ? (
                 <>
-                  <CheckCircle className="h-4 w-4" />
-                  Copied!
+                  <CheckCircle className="h-4 w-4 text-[#10B981]" />
+                  <span>Copied</span>
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4" />
-                  Copy
+                  <span>Copy Content</span>
                 </>
               )}
             </button>
           </div>
 
-          {/* Content Rendering */}
-          <div className="space-y-4">
+          {/* Deliverable Body */}
+          <div>
             {Array.isArray(activeContent) ? (
-              // Twitter/X Thread rendering
               <div className="space-y-3">
                 {activeContent.map((tweet, index) => (
                   <div
                     key={index}
-                    className="rounded-lg border border-slate-700 bg-slate-950 p-4"
+                    className="bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg p-4 space-y-2"
                   >
-                    <div className="mb-2 flex items-center justify-between">
-                      <span className="text-xs font-semibold text-cyan-400">
-                        Tweet {index + 1} of {activeContent.length}
-                      </span>
-                      <span className="text-xs text-slate-500">
-                        {tweet.length}/280 chars
-                      </span>
+                    <div className="flex items-center justify-between text-xs font-semibold text-[#6B7280]">
+                      <span className="text-[#3B82F6]">Tweet {index + 1} of {activeContent.length}</span>
+                      <span className="font-mono">{tweet.length} / 280 chars</span>
                     </div>
-                    <p className="whitespace-pre-wrap break-words text-sm text-slate-100">
+                    <p className="text-sm text-[#111827] whitespace-pre-wrap leading-relaxed">
                       {tweet}
                     </p>
                   </div>
                 ))}
               </div>
             ) : (
-              // Standard text content rendering
-              <div className="max-h-96 overflow-y-auto rounded-lg bg-slate-950 p-4">
-                <div
-                  className={`whitespace-pre-wrap break-words text-sm text-slate-100 ${
-                    activeTab === "Executive Summary" ? "prose-headings:text-cyan-300" : ""
-                  }`}
-                >
-                  {/* Simple markdown-like rendering for headers */}
-                  {activeContent.split("\n").map((line, idx) => {
-                    if (line.startsWith("## ")) {
-                      return (
-                        <h2
-                          key={idx}
-                          className="mt-4 text-lg font-semibold text-cyan-300"
-                        >
-                          {line.substring(3)}
-                        </h2>
-                      )
-                    }
-                    if (line.startsWith("# ")) {
-                      return (
-                        <h1
-                          key={idx}
-                          className="mt-4 text-xl font-bold text-cyan-400"
-                        >
-                          {line.substring(2)}
-                        </h1>
-                      )
-                    }
-                    if (line.startsWith("- ")) {
-                      return (
-                        <div key={idx} className="ml-4">
-                          • {line.substring(2)}
-                        </div>
-                      )
-                    }
-                    return (
-                      <div key={idx} className="text-slate-100">
-                        {line}
-                      </div>
-                    )
-                  })}
+              <div className="max-h-[500px] overflow-y-auto pr-1 bg-[#F9FAFB] border border-[#E5E7EB] rounded-lg p-4">
+                <div className="text-sm text-[#111827] whitespace-pre-wrap leading-relaxed font-sans">
+                  {activeContent}
                 </div>
               </div>
             )}
           </div>
 
           {/* Quick Actions */}
-          <div className="flex gap-2 border-t border-slate-800 pt-4">
+          <div className="flex gap-3 pt-3 border-t border-[#E5E7EB]">
             <button
+              type="button"
               onClick={() => handleCopy(activeTab, activeContent)}
-              className="flex-1 rounded-lg bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-700"
+              className="flex-1 py-2.5 text-xs font-semibold text-[#111827] bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] rounded-md transition-colors"
             >
-              <Copy className="mb-1 inline h-4 w-4 mr-2" />
-              Copy Full Content
+              Copy Full Deliverable
             </button>
             <button
+              type="button"
               onClick={() => {
-                const text = Array.isArray(activeContent)
-                  ? activeContent.join("\n\n")
-                  : activeContent
-                window.open(
-                  `https://twitter.com/intent/tweet?text=${encodeURIComponent(text.substring(0, 280))}`,
-                  "_blank"
-                )
+                const text = Array.isArray(activeContent) ? activeContent.join("\n\n") : activeContent
+                window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text.substring(0, 280))}`, "_blank")
               }}
-              className="flex-1 rounded-lg border border-slate-700 bg-slate-900 px-4 py-2 text-sm font-medium text-slate-200 transition-colors hover:bg-slate-800"
+              className="flex-1 py-2.5 text-xs font-semibold text-[#111827] bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] rounded-md transition-colors"
             >
-              <Share2 className="mb-1 inline h-4 w-4 mr-2" />
-              Share
+              Share Preview on Twitter/X
             </button>
           </div>
         </div>
       )}
 
-      {/* Empty State */}
       {!activeContent && (
-        <div className="rounded-lg border border-slate-700 bg-slate-900/50 p-8 text-center">
-          <AlertCircle className="mx-auto h-8 w-8 text-slate-500" />
-          <p className="mt-2 text-slate-400">No deliverable selected</p>
+        <div className="p-8 text-center text-sm text-[#6B7280]">
+          No format selected.
         </div>
       )}
     </div>
