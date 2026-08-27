@@ -1,28 +1,41 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap');
 
 @import "tailwindcss";
 
-/* ==================== Reset & Root Layout ==================== */
+/* ==================== Design Tokens (NTRO Platform) ==================== */
 
 :root {
-  --bg-app: #ffffff;
-  --bg-muted: #f3f4f6;
-  --bg-surface: #f9fafb;
+  /* Background colors */
+  --bg-page: #F7F8FA;
+  --bg-surface: #FFFFFF;
   
-  --text-primary: #111827;
-  --text-secondary: #4b5563;
-  --text-muted: #6b7280;
-
-  --primary: #3b82f6;
-  --primary-hover: #2563eb;
+  /* Border colors */
+  --border: #E6E8EC;
+  --border-strong: #D7DAE0;
   
-  --secondary: #10b981;
-  --accent: #f59e0b;
-  --error: #ef4444;
-
-  --border: #e5e7eb;
-  --border-input: #d1d5db;
-  --border-focus: #3b82f6;
+  /* Ink (text) colors */
+  --ink-900: #12151C;
+  --ink-700: #3A3F4B;
+  --ink-500: #6B7280;
+  --ink-400: #9AA0AC;
+  
+  /* Accent colors */
+  --accent: #3D5AFE;
+  --accent-ink: #2A3FD1;
+  --accent-tint: #EEF1FF;
+  
+  /* Success colors */
+  --success: #12A150;
+  --success-tint: #E9F9EF;
+  
+  /* Radius scale */
+  --radius-card: 14px;
+  --radius-panel: 10px;
+  --radius-button: 7px;
+  
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(18, 21, 28, 0.04);
+  --shadow-md: 0 4px 16px rgba(18, 21, 28, 0.06);
 
   color-scheme: light;
 }
@@ -38,12 +51,13 @@ html, body {
   min-height: 100% !important;
   margin: 0 !important;
   padding: 0 !important;
-  background-color: #ffffff;
-  color: var(--text-primary);
-  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  background-color: var(--bg-page);
+  color: var(--ink-900);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
   font-size: 15px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 #root {
@@ -52,6 +66,11 @@ html, body {
   display: flex !important;
   flex-direction: column !important;
   align-items: stretch !important;
+}
+
+/* Font utility classes */
+.font-mono {
+  font-family: 'IBM Plex Mono', 'Courier New', monospace;
 }
 
 /* ==================== Application Shell Layout ==================== */

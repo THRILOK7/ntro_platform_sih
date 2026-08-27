@@ -10,10 +10,7 @@ import {
   Loader,
   AlertCircle,
   FileText,
-  RefreshCw,
-  Download,
   Volume2,
-  BarChart3,
   Zap,
 } from "lucide-react"
 import type {
@@ -34,7 +31,7 @@ import {
   DetailLevel,
   api,
 } from "./api"
-import { DeliverablesWorkspace } from "./components/DeliverablesWorkspace"
+import DeliverableViewer, { parseContent } from "./components/DeliverableViewer"
 import { ReviewExport } from "./components/ReviewExport"
 import { AnalyticsPanel } from "./components/AnalyticsPanel"
 import { AudioPlayer } from "./components/AudioPlayer"
@@ -64,6 +61,7 @@ interface AppState {
   resultTab: ResultTab
   isLoadingAnalytics: boolean
   isGeneratingTTS: boolean
+  activeDeliverable: string
 }
 
 const DEFAULT_PARAMETERS: IngestionParams = {
@@ -82,14 +80,6 @@ const OUTPUT_OPTIONS = [
   "Infographic",
   "Executive Summary",
   "Presentation",
-]
-
-const RESULT_TABS: { id: ResultTab; label: string; icon: React.ReactNode }[] = [
-  { id: "deliverables", label: "Deliverables", icon: <FileText className="w-4 h-4" /> },
-  { id: "refine", label: "Refine", icon: <RefreshCw className="w-4 h-4" /> },
-  { id: "export", label: "Export", icon: <Download className="w-4 h-4" /> },
-  { id: "analytics", label: "Analytics", icon: <BarChart3 className="w-4 h-4" /> },
-  { id: "tts", label: "Audio", icon: <Volume2 className="w-4 h-4" /> },
 ]
 
 // ==================== Main App Component ====================
@@ -112,6 +102,7 @@ export function App(): React.ReactElement {
     resultTab: "deliverables",
     isLoadingAnalytics: false,
     isGeneratingTTS: false,
+    activeDeliverable: "",
   })
 
   const [parameters, setParameters] = useState<IngestionParams>(DEFAULT_PARAMETERS)
@@ -299,6 +290,7 @@ export function App(): React.ReactElement {
         ...prev,
         generationResult: result,
         currentPhase: "complete",
+        activeDeliverable: Object.keys(result.deliverables)[0] || "",
       }))
 
       await handleLoadAnalytics(result.deliverables)
@@ -380,6 +372,7 @@ export function App(): React.ReactElement {
       resultTab: "deliverables",
       isLoadingAnalytics: false,
       isGeneratingTTS: false,
+      activeDeliverable: "",
     }))
     if (fileInputRef.current) {
       fileInputRef.current.value = ""
@@ -713,56 +706,57 @@ export function App(): React.ReactElement {
 
           {/* ── Phase 3: Results State ────────────────────────────── */}
           {appState.currentPhase === "complete" && appState.generationResult && (
-            <div className="flex flex-col gap-6 w-full">
+            <>
+              {appState.resultTab === "deliverables" && (
+                <DeliverableViewer
+                  productName="NTRO Platform"
+                  productTagline="Content Transformation Engine"
+                  connectionMs={appState.healthStatus.latency || 7}
+                  deliverableCount={Object.keys(appState.generationResult.deliverables).length}
+                  generationTime={`${appState.generationResult.execution_time_seconds.toFixed(2)}s`}
+                  transformationId={appState.generationResult.generation_id}
+                  deliverableType={appState.activeDeliverable}
+                  contentTitle={appState.activeDeliverable}
+                  wordCount={(() => {
+                    const content = appState.generationResult.deliverables[appState.activeDeliverable]
+                    if (!content) return 0
+                    const text = Array.isArray(content) ? content.join(" ") : content
+                    return text.trim().split(/\s+/).filter(Boolean).length
+                  })()}
+                  charCount={(() => {
+                    const content = appState.generationResult.deliverables[appState.activeDeliverable]
+                    if (!content) return 0
+                    const text = Array.isArray(content) ? content.join(" ") : content
+                    return text.length
+                  })()}
+                  sections={(() => {
+                    const content = appState.generationResult.deliverables[appState.activeDeliverable]
+                    if (!content) return []
+                    if (Array.isArray(content)) {
+                      return [{ label: "Content", items: content.map(t => ({ text: t })) }]
+                    }
+                    return parseContent(content as string)
+                  })()}
+                  onNewTransformation={handleReset}
+                  onCopy={() => {
+                    const content = appState.generationResult!.deliverables[appState.activeDeliverable]
+                    if (!content) return
+                    const text = Array.isArray(content) ? content.join("\n\n") : content
+                    navigator.clipboard.writeText(text)
+                    toast.success("Content copied!", 2000)
+                  }}
+                  allDeliverables={appState.generationResult.deliverables}
+                  onDeliverableChange={(key) => {
+                    setAppState((prev) => ({ ...prev, activeDeliverable: key }))
+                  }}
+                />
+              )}
 
-              {/* Results Header */}
-              <div className="flex items-center justify-between border-b border-[#E5E7EB] pb-4">
-                <div>
-                  <h2 className="text-2xl font-bold text-[#111827]">Transformation Complete</h2>
-                  <p className="text-xs text-[#6B7280] mt-0.5">
-                    Generated {Object.keys(appState.generationResult.deliverables).length} deliverables in{" "}
-                    {appState.generationResult.execution_time_seconds.toFixed(2)}s
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  onClick={handleReset}
-                  className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-[#111827] bg-[#F3F4F6] hover:bg-[#E5E7EB] border border-[#E5E7EB] rounded-md transition-colors"
-                >
-                  <RefreshCw className="h-3.5 w-3.5" />
-                  <span>New Transformation</span>
-                </button>
-              </div>
-
-              {/* Navigation Tabs */}
-              <div className="flex border-b border-[#E5E7EB] gap-2 overflow-x-auto">
-                {RESULT_TABS.map((tab) => (
-                  <button
-                    key={tab.id}
-                    type="button"
-                    onClick={() => setAppState((prev) => ({ ...prev, resultTab: tab.id }))}
-                    className={`flex items-center gap-2 px-5 py-3 text-sm font-semibold border-b-2 rounded-none transition-colors whitespace-nowrap ${
-                      appState.resultTab === tab.id
-                        ? "border-[#3B82F6] text-[#3B82F6]"
-                        : "border-transparent text-[#6B7280] hover:text-[#111827]"
-                    }`}
-                  >
-                    {tab.icon}
-                    <span>{tab.label}</span>
-                  </button>
-                ))}
-              </div>
+              {appState.resultTab !== "deliverables" && (
+                <div className="flex flex-col gap-6 w-full">
 
               {/* Tab Contents */}
               <div className="pt-2">
-                {appState.resultTab === "deliverables" && (
-                  <DeliverablesWorkspace
-                    deliverables={appState.generationResult.deliverables}
-                    executionTime={appState.generationResult.execution_time_seconds}
-                    generationId={appState.generationResult.generation_id}
-                    onClose={() => {}}
-                  />
-                )}
 
                 {appState.resultTab === "refine" && (
                   <ReviewExport
@@ -881,6 +875,8 @@ export function App(): React.ReactElement {
             </div>
           </div>
         )}
+            </>
+          )}
         </div>
       </main>
     </div>
