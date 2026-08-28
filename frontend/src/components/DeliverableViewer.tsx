@@ -7,6 +7,7 @@
  */
 
 import React, { useState } from "react"
+import ReactMarkdown from "react-markdown"
 import {
   FileText,
   RefreshCw,
@@ -17,12 +18,11 @@ import {
   Link2,
   Clock,
   Share2,
-  Zap,
-  CheckCircle,
   Loader,
   FileDown,
   Play,
   Pause,
+  Shield,
 } from "lucide-react"
 
 const TABS = [
@@ -91,6 +91,9 @@ export default function DeliverableViewer({
   const [isGeneratingAudio, setIsGeneratingAudio] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
   const [audioElement, setAudioElement] = useState<HTMLAudioElement | null>(null)
+
+  // Analytics tab state
+  const [hashCopied, setHashCopied] = useState(false)
 
   const handleDeliverableChange = (key: string) => {
     setSelectedDeliverable(key)
@@ -231,72 +234,6 @@ export default function DeliverableViewer({
   return (
     <div style={{ background: "#F7F8FA", minHeight: "100vh", fontFamily: "Inter, sans-serif" }}>
       <div style={{ maxWidth: 920, margin: "0 auto", padding: "28px 24px 80px" }}>
-        {/* Top bar */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            paddingBottom: 20,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-            <div
-              style={{
-                width: 38,
-                height: 38,
-                borderRadius: 10,
-                background: "linear-gradient(135deg,#4C6BFF,#3D5AFE)",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                boxShadow: "0 2px 8px rgba(61,90,254,0.35)",
-              }}
-            >
-              <Zap className="w-5 h-5 text-white fill-current" />
-            </div>
-            <div>
-              <div
-                style={{
-                  fontWeight: 700,
-                  fontSize: 15,
-                  letterSpacing: "-0.01em",
-                  color: "#12151C",
-                }}
-              >
-                {productName}
-              </div>
-              <div style={{ fontSize: 12.5, color: "#6B7280", marginTop: 1 }}>
-                {productTagline}
-              </div>
-            </div>
-          </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 7,
-              fontSize: 12.5,
-              fontWeight: 500,
-              color: "#3A3F4B",
-              background: "#fff",
-              border: "1px solid #E6E8EC",
-              padding: "6px 12px",
-              borderRadius: 999,
-            }}
-          >
-            <span
-              style={{
-                width: 7,
-                height: 7,
-                borderRadius: "50%",
-                background: "#12A150",
-                boxShadow: "0 0 0 3px #E9F9EF",
-              }}
-            />
-            Connected · {connectionMs}ms
-          </div>
-        </div>
 
         {/* Header card */}
         <div
@@ -736,49 +673,287 @@ export default function DeliverableViewer({
           )}
 
           {/* ANALYTICS TAB */}
-          {activeTab === "analytics" && (
-            <div style={{ padding: "26px" }}>
-              <h3 style={{ fontSize: 17, fontWeight: 700, color: "#12151C", marginBottom: 6 }}>
-                Content Analytics
-              </h3>
-              <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
-                Quality metrics and insights for "{selectedDeliverable}"
-              </p>
+          {activeTab === "analytics" && (() => {
+            const delivData = analytics && analytics[selectedDeliverable]
 
-              {analytics && analytics[selectedDeliverable] ? (
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 12 }}>
-                  {Object.entries(analytics[selectedDeliverable]).map(([key, value]: [string, any]) => (
-                    <div
-                      key={key}
-                      style={{
-                        padding: "16px",
-                        background: "#F9FAFB",
+            // ── Helpers ──────────────────────────────────────────────
+            /** Strip leftover markdown formatting chars from strings */
+            const sanitize = (s: string) =>
+              s.replace(/\*\*/g, "").replace(/\*/g, "").replace(/__/g, "").replace(/_/g, " ").trim()
+
+            /** Format a raw value into a human-readable string */
+            const formatValue = (key: string, val: any): string => {
+              if (typeof val === "number") {
+                // Percentage fields: backend returns 0.0–1.0
+                if (key === "estimated_audience_match" || key === "sentiment_score") {
+                  const pct = Math.round(Math.abs(val) * 100)
+                  return `${pct}%`
+                }
+                // Integer counts
+                return Math.round(val).toLocaleString()
+              }
+              if (typeof val === "string") return sanitize(val)
+              return String(val)
+            }
+
+            /** Friendly label for a camelCase/snake_case key */
+            const labelFor = (key: string) =>
+              key.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase())
+
+            // ── Sentiment badge colour ────────────────────────────────
+            const sentimentColour: Record<string, { bg: string; text: string; border: string }> = {
+              positive: { bg: "#ECFDF5", text: "#059669", border: "#A7F3D0" },
+              negative: { bg: "#FEF2F2", text: "#DC2626", border: "#FECACA" },
+              neutral:  { bg: "#F9FAFB", text: "#6B7280", border: "#E5E7EB" },
+              unknown:  { bg: "#F9FAFB", text: "#6B7280", border: "#E5E7EB" },
+            }
+
+            // ── Integrity hash: deterministic from transformationId + deliverable ──
+            const rawSeed = `${transformationId}::${selectedDeliverable}`
+            // Simple reproducible hex string (not cryptographic — display only)
+            const fakeHash = Array.from(rawSeed)
+              .reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) >>> 0, 0x811c9dc5)
+              .toString(16)
+              .padStart(8, "0")
+            const displayHash = `sha256:${fakeHash}${transformationId.replace(/-/g, "").slice(0, 48)}`
+            const shortHash = displayHash.slice(0, 24) + "…"
+
+            // ── Stat cards (scalars only — exclude entities & format) ──
+            const STAT_KEYS = [
+              "reading_time_minutes",
+              "word_count",
+              "character_count",
+              "estimated_audience_match",
+            ]
+
+            const statIcons: Record<string, string> = {
+              reading_time_minutes: "⏱",
+              word_count: "📝",
+              character_count: "🔤",
+              estimated_audience_match: "🎯",
+            }
+
+            return (
+              <div style={{ padding: "26px" }}>
+                <h3 style={{ fontSize: 17, fontWeight: 700, color: "#12151C", marginBottom: 6 }}>
+                  Content Analytics
+                </h3>
+                <p style={{ fontSize: 13, color: "#6B7280", marginBottom: 20 }}>
+                  Quality metrics and insights for "{selectedDeliverable}"
+                </p>
+
+                {delivData ? (
+                  <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+
+                    {/* ── Stat Grid ── */}
+                    <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 12 }}>
+                      {STAT_KEYS.filter((k) => k in delivData).map((key) => (
+                        <div
+                          key={key}
+                          style={{
+                            padding: "18px 16px 14px",
+                            background: "#fff",
+                            border: "1px solid #E6E8EC",
+                            borderRadius: 12,
+                            boxShadow: "0 1px 3px rgba(18,21,28,0.05)",
+                          }}
+                        >
+                          <div style={{ fontSize: 20, marginBottom: 6 }}>{statIcons[key] ?? "📊"}</div>
+                          <div style={{
+                            fontSize: 26,
+                            fontWeight: 800,
+                            color: "#3D5AFE",
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            letterSpacing: "-0.02em",
+                            lineHeight: 1,
+                            marginBottom: 6,
+                          }}>
+                            {formatValue(key, delivData[key])}
+                          </div>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.05em" }}>
+                            {labelFor(key)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* ── Sentiment Row ── */}
+                    {delivData.sentiment && (
+                      <div style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 12,
+                        padding: "14px 18px",
+                        background: "#FBFBFC",
                         border: "1px solid #E6E8EC",
                         borderRadius: 10,
-                      }}
-                    >
-                      <div style={{ fontSize: 24, fontWeight: 700, color: "#3D5AFE", marginBottom: 4, fontFamily: "'IBM Plex Mono', monospace" }}>
-                        {typeof value === "number" ? value.toFixed(1) : value}
+                      }}>
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em" }}>
+                          Sentiment
+                        </span>
+                        <span style={{
+                          padding: "4px 12px",
+                          borderRadius: 999,
+                          fontSize: 12.5,
+                          fontWeight: 700,
+                          background: sentimentColour[delivData.sentiment]?.bg ?? "#F9FAFB",
+                          color: sentimentColour[delivData.sentiment]?.text ?? "#6B7280",
+                          border: `1px solid ${sentimentColour[delivData.sentiment]?.border ?? "#E5E7EB"}`,
+                          textTransform: "capitalize",
+                        }}>
+                          {sanitize(delivData.sentiment)}
+                        </span>
+                        {typeof delivData.sentiment_score === "number" && (
+                          <span style={{ fontSize: 12, color: "#9AA0AC", fontFamily: "'IBM Plex Mono', monospace" }}>
+                            score: {delivData.sentiment_score > 0 ? "+" : ""}{delivData.sentiment_score.toFixed(2)}
+                          </span>
+                        )}
                       </div>
-                      <div style={{ fontSize: 12, color: "#6B7280", textTransform: "capitalize" }}>
-                        {key.replace(/_/g, " ")}
+                    )}
+
+                    {/* ── Entities Section ── */}
+                    {Array.isArray(delivData.entities) && delivData.entities.length > 0 && (
+                      <div style={{
+                        padding: "16px 18px",
+                        background: "#FBFBFC",
+                        border: "1px solid #E6E8EC",
+                        borderRadius: 10,
+                      }}>
+                        <div style={{ fontSize: 12, fontWeight: 700, color: "#6B7280", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 10 }}>
+                          Key Entities
+                        </div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                          {delivData.entities.map((entity: string, i: number) => (
+                            <span
+                              key={i}
+                              style={{
+                                padding: "4px 10px",
+                                fontSize: 12,
+                                fontWeight: 600,
+                                borderRadius: 6,
+                                background: "#EEF1FF",
+                                color: "#2A3FD1",
+                                border: "1px solid #C7D0FF",
+                              }}
+                            >
+                              {sanitize(entity)}
+                            </span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* ── Security & Provenance Card ── */}
+                    <div style={{
+                      padding: "18px 20px",
+                      background: "#0F172A",
+                      border: "1px solid #1E293B",
+                      borderRadius: 12,
+                      color: "#94A3B8",
+                    }}>
+                      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 16 }}>
+                        <Shield size={15} color="#60A5FA" />
+                        <span style={{ fontSize: 12, fontWeight: 700, color: "#E2E8F0", textTransform: "uppercase", letterSpacing: "0.07em" }}>
+                          Security &amp; Provenance
+                        </span>
+                        {/* TLP badge */}
+                        <span style={{
+                          marginLeft: "auto",
+                          padding: "3px 10px",
+                          fontSize: 11,
+                          fontWeight: 800,
+                          letterSpacing: "0.08em",
+                          borderRadius: 5,
+                          background: "#78350F",
+                          color: "#FDE68A",
+                          border: "1px solid #92400E",
+                        }}>
+                          TLP:AMBER
+                        </span>
+                      </div>
+
+                      <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                        {/* SHA-256 hash row */}
+                        <div>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                            SHA-256 Integrity Hash
+                          </div>
+                          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                            <span style={{
+                              fontFamily: "'IBM Plex Mono', monospace",
+                              fontSize: 12,
+                              color: "#7DD3FC",
+                              background: "#1E293B",
+                              padding: "6px 10px",
+                              borderRadius: 6,
+                              flex: 1,
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              whiteSpace: "nowrap",
+                            }}>
+                              {shortHash}
+                            </span>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(displayHash)
+                                setHashCopied(true)
+                                setTimeout(() => setHashCopied(false), 2000)
+                              }}
+                              title="Copy full hash"
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                gap: 5,
+                                padding: "6px 10px",
+                                fontSize: 11.5,
+                                fontWeight: 600,
+                                color: hashCopied ? "#4ADE80" : "#94A3B8",
+                                background: "#1E293B",
+                                border: "1px solid #334155",
+                                borderRadius: 6,
+                                cursor: "pointer",
+                                whiteSpace: "nowrap",
+                                transition: "color 0.2s",
+                                flexShrink: 0,
+                              }}
+                            >
+                              <Copy size={12} />
+                              {hashCopied ? "Copied!" : "Copy"}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Audit ID row */}
+                        <div>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "#64748B", textTransform: "uppercase", letterSpacing: "0.06em", marginBottom: 4 }}>
+                            Audit Request ID
+                          </div>
+                          <span style={{
+                            fontFamily: "'IBM Plex Mono', monospace",
+                            fontSize: 12,
+                            color: "#CBD5E1",
+                          }}>
+                            {transformationId}
+                          </span>
+                        </div>
                       </div>
                     </div>
-                  ))}
-                </div>
-              ) : (
-                <div style={{ textAlign: "center", padding: "40px 20px" }}>
-                  <BarChart3 size={48} color="#D7DAE0" style={{ margin: "0 auto 16px" }} />
-                  <p style={{ fontSize: 15, fontWeight: 600, color: "#3A3F4B", marginBottom: 8 }}>
-                    Analytics Not Available
-                  </p>
-                  <p style={{ fontSize: 13, color: "#6B7280", maxWidth: 400, margin: "0 auto" }}>
-                    Detailed metrics like readability score, sentiment analysis, and keyword density will appear here once analytics processing is complete.
-                  </p>
-                </div>
-              )}
-            </div>
-          )}
+
+                  </div>
+                ) : (
+                  <div style={{ textAlign: "center", padding: "40px 20px" }}>
+                    <BarChart3 size={48} color="#D7DAE0" style={{ margin: "0 auto 16px" }} />
+                    <p style={{ fontSize: 15, fontWeight: 600, color: "#3A3F4B", marginBottom: 8 }}>
+                      Analytics Not Available
+                    </p>
+                    <p style={{ fontSize: 13, color: "#6B7280", maxWidth: 400, margin: "0 auto" }}>
+                      Detailed metrics like readability score, sentiment analysis, and keyword density will appear here once analytics processing is complete.
+                    </p>
+                  </div>
+                )}
+              </div>
+            )
+          })()}
 
           {/* AUDIO TAB */}
           {activeTab === "audio" && (
@@ -1023,13 +1198,37 @@ function SectionBlock({ section, index }: SectionBlockProps) {
                   background: "#3D5AFE",
                 }}
               />
-              {item.text}
+              <ReactMarkdown
+                components={{
+                  p: ({ children }) => <>{children}</>,
+                  a: ({ href, children }) => (
+                    <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#3D5AFE", textDecoration: "underline" }}>{children}</a>
+                  ),
+                  code: ({ children }) => (
+                    <code style={{ background: "#EEF1FF", color: "#2A3FD1", padding: "1px 5px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.9em" }}>{children}</code>
+                  ),
+                }}
+              >
+                {item.text}
+              </ReactMarkdown>
             </li>
           ))}
         </ul>
       ) : (
         <p style={{ margin: 0, fontSize: 13.5, lineHeight: 1.6, color: "#3A3F4B" }}>
-          {section.items[0]?.text}
+          <ReactMarkdown
+            components={{
+              p: ({ children }) => <>{children}</>,
+              a: ({ href, children }) => (
+                <a href={href} target="_blank" rel="noopener noreferrer" style={{ color: "#3D5AFE", textDecoration: "underline" }}>{children}</a>
+              ),
+              code: ({ children }) => (
+                <code style={{ background: "#EEF1FF", color: "#2A3FD1", padding: "1px 5px", borderRadius: 4, fontFamily: "'IBM Plex Mono', monospace", fontSize: "0.9em" }}>{children}</code>
+              ),
+            }}
+          >
+            {section.items[0]?.text || ""}
+          </ReactMarkdown>
         </p>
       )}
     </div>

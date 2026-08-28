@@ -749,6 +749,22 @@ export function App(): React.ReactElement {
                   onDeliverableChange={(key) => {
                     setAppState((prev) => ({ ...prev, activeDeliverable: key }))
                   }}
+                  parameters={parameters}
+                  analytics={appState.analyticsResult}
+                  onContentRefresh={(newContent) => {
+                    setAppState((prev) => ({
+                      ...prev,
+                      generationResult: prev.generationResult
+                        ? {
+                            ...prev.generationResult,
+                            deliverables: {
+                              ...prev.generationResult.deliverables,
+                              [prev.activeDeliverable]: newContent,
+                            },
+                          }
+                        : null,
+                    }))
+                  }}
                 />
               )}
 
